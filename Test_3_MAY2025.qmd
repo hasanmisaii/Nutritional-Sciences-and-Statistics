@@ -1,0 +1,4284 @@
+---
+title: "Usual Intake Distribution Estimation: A Comparison Study"
+author: "Hasan MISAII"
+format:
+  beamer:
+    aspectratio: 169
+    theme: Boadilla
+    colortheme: "dolphin"
+editor: visual
+---
+
+## challenges
+
+-   **Zero-Inflation**: Many dietary intake datasets have a significant number of zero values, which can complicate the estimation of usual intake distributions.
+-   **Non-Normality**: Dietary intake data often do not follow a normal distribution, making traditional statistical methods inappropriate.
+-   **Complexity of Dietary Patterns**: Individuals often consume a wide variety of foods, leading to complex dietary patterns that are difficult to model.
+-   **Sample Size**: Small sample sizes can lead to unreliable estimates of usual intake distributions, particularly for less commonly consumed foods.
+-   **Data Collection Methods**: Different methods of data collection (e.g., 24-hour recalls, food frequency questionnaires) can yield different results, complicating comparisons across studies.
+-   **Censoring**: In some cases, dietary intake data may be censored (e.g., individuals may not report all foods consumed), which can complicate the estimation process.
+-   **Model Selection**: Choosing the appropriate statistical model for estimating usual intake distributions can be challenging, particularly when dealing with complex dietary data.
+
+## Different Varaiablity
+
+-   **Between-Person Variability**: Refers to the differences in dietary intake among different individuals within a population. This variability is important for understanding population-level dietary patterns and for making dietary recommendations.
+-   **Within-Person or temporal Variability**: Refers to the differences in dietary intake within the same individual over time. This variability is important for understanding how an individual's dietary intake may change and for assessing the reliability of dietary recall data.
+-   **Measurement Error**: Dietary recall data can be subject to measurement error, which can bias estimates of usual intake distributions.
+
+## Usual Intake Distribution Estimation Methods
+
+-   **NCI Method**: The NCI method is a statistical approach used to estimate usual dietary intake distributions from non-normal data, particularly when dealing with dietary recall data. It accounts for the fact that many individuals may have zero or very low intake of certain foods, which can skew the results if not properly handled.
+
+## Identifying the day-to-day or within-person or temporal variability
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=3}
+# cuivre data
+library(readr)
+library(ggplot2)
+library(ggpubr)
+library(dplyr)
+library(tidyr)
+
+phosphors <- read_table("C:/Users/Hasan MISAII/Desktop/ANR TRANSFOOD/ANR TRANSFOOD/Data_nutrients/phosphors.txt") 
+phosphors <- data.frame(phosphors)
+# prepare data for anova
+phosphors_n = c(as.numeric(phosphors[1,-1]),as.numeric(phosphors[2,-1]),as.numeric(phosphors[3,-1]))
+phosphors_d = c(rep("day_1", length(as.numeric(phosphors[1,-1]))), rep("day_2", length(as.numeric(phosphors[2,-1]))), rep("day_3", length(as.numeric(phosphors[3,-1]))))
+
+phosphors_d = as.factor(phosphors_d)
+
+data_phosphors = data.frame(group = phosphors_d, value = phosphors_n)
+
+# log transformation of value 
+data_phosphors$value = log(data_phosphors$value + 1) # add 10 to avoid log(0)
+
+
+
+# anove
+anova_res = aov(value ~ group, data = data_phosphors)
+summary(anova_res)
+
+# Tukey's HSD test
+tukey_res = TukeyHSD(anova_res)
+tukey_res
+
+# Plotting the results
+
+
+
+
+ggplot(data_phosphors, aes(x = group, y = value)) +
+  geom_boxplot() +
+  stat_summary(fun = mean, geom = "point", shape = 5, size = 3, color = "red") +
+  labs(title = "Boxplot of phosphors Data by Day", x = "Day", y = "phosphors Value") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+plot(anova_res, las = 1, col = "blue", main = "Tukey's HSD Test Results")
+
+```
+
+## Tukey's HSD Test Results
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=3}
+# Load libraries
+library(ggplot2)
+library(dplyr)
+library(patchwork)  # For combining plots
+
+# Prepare data
+tukey_df <- as.data.frame(tukey_res$group)
+tukey_df$comparison <- rownames(tukey_df)
+colnames(tukey_df) <- c("diff", "lwr", "upr", "p_adj", "comparison")
+tukey_df$significant <- tukey_df$p_adj < 0.05
+
+# Plot 1: Mean differences with CI
+p1 <- ggplot(tukey_df, aes(x = comparison, y = diff, ymin = lwr, ymax = upr, color = significant)) +
+  geom_pointrange(position = position_dodge(width = 0.3)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  scale_color_manual(values = c("TRUE" = "red", "FALSE" = "black")) +
+  labs(
+    title = "Tukey HSD: Mean Differences with 95% CI",
+    x = NULL,
+    y = "Difference"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# Plot 2: Adjusted p-values
+p2 <- ggplot(tukey_df, aes(x = comparison, y = p_adj, fill = significant)) +
+  geom_col() +
+  geom_hline(yintercept = 0.05, linetype = "dashed", color = "blue") +
+  scale_fill_manual(values = c("TRUE" = "red", "FALSE" = "gray70")) +
+  labs(
+    title = "Adjusted p-values (Tukey)",
+    x = "Comparison",
+    y = "p-value"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# Combine the two plots
+p1 / p2  # patchwork syntax: stack vertically
+
+
+```
+
+## Protein Intake Data
+
+```{r echo=FALSE, eval=FALSE, fig.align="center", fig.width=6, fig.height=3}
+protein <- read.delim("C:/Users/Hasan MISAII/Desktop/ANR TRANSFOOD/ANR TRANSFOOD/Data_nutrients/protein.txt")
+protein <- data.frame(protein)
+
+library(iDEMO)
+run.gui()
+
+## remove columns including zero
+protein_no_zero_cols <- protein[, !apply(protein == 0, 2, any)]
+
+# remove row names
+rownames(protein_no_zero_cols) <- NULL
+
+# take log of all cells expect first column
+
+log_protein <- protein_no_zero_cols
+log_protein[, -1] <- log(protein_no_zero_cols[, -1])
+
+## apply models
+protein <- log_protein
+
+
+
+```
+
+![](Protein_results_iDEMO.png){fig-align="center"}
+
+## Cuivre Intake Data
+
+```{r echo=FALSE, eval=FALSE, fig.align="center", fig.width=6, fig.height=3}
+cuivre <- read.delim("C:/Users/Hasan MISAII/Desktop/ANR TRANSFOOD/ANR TRANSFOOD/Data_nutrients/cuivre.txt")
+cuivre <- data.frame(cuivre)
+
+library(iDEMO)
+run.gui()
+
+## remove columns including zero
+cuivre_no_zero_cols <- cuivre[, !apply(cuivre == 0, 2, any)]
+
+# remove row names
+rownames(cuivre_no_zero_cols) <- NULL
+
+# take log of all cells expect first column
+
+log_cuivre <- cuivre_no_zero_cols
+log_cuivre[, -1] <- log(cuivre_no_zero_cols[, -1])
+
+## apply models
+cuivre <- log_cuivre
+
+
+
+```
+
+![](cuivre_results_iDEMO.png){fig-align="center"}
+
+## Energy Intake Data
+
+```{r echo=FALSE, eval=FALSE, fig.align="center", fig.width=6, fig.height=3}
+aesa <- read.delim("C:/Users/Hasan MISAII/Desktop/ANR TRANSFOOD/ANR TRANSFOOD/Data_nutrients/aesa.txt")
+aesa <- data.frame(aesa)
+
+library(iDEMO)
+run.gui()
+
+## remove columns including zero
+aesa_no_zero_cols <- aesa[, !apply(aesa == 0, 2, any)]
+
+# remove row names
+rownames(aesa_no_zero_cols) <- NULL
+
+# take log of all cells expect first column
+
+log_aesa <- aesa_no_zero_cols
+log_aesa[, -1] <- log(aesa_no_zero_cols[, -1])
+
+## apply models
+aesa <- log_aesa
+
+
+
+```
+
+![](Energy_results_iDEMO.png){fig-align="center"}
+
+## Calcium Intake Data
+
+```{r echo=FALSE, eval=FALSE, fig.align="center", fig.width=6, fig.height=3}
+calcium <- read.delim("C:/Users/Hasan MISAII/Desktop/ANR TRANSFOOD/ANR TRANSFOOD/Data_nutrients/calcium.txt")
+calcium <- data.frame(calcium)
+
+
+plot(density(as.numeric(calcium[1,])), main = "Density of Calcium Intake", xlab = "Calcium Intake", ylab = "Density")
+
+
+library(iDEMO)
+run.gui()
+
+## remove columns including zero
+# calcium_no_zero_cols <- calcium[, !apply(calcium == 0, 2, any)]
+
+# add 1 to avoid log(0)
+calcium <- calcium + 1
+
+# remove row names
+rownames(calcium) <- NULL
+
+# take log of all cells expect first column
+
+log_calcium <- calcium
+log_calcium[, -1] <- log(calcium[, -1])
+
+## apply models
+calcium <- log_calcium
+
+plot(density(as.numeric(calcium[2,])), main = "Density of Calcium Intake", xlab = "Calcium Intake", ylab = "Density")
+
+
+```
+
+![](Calcium_results_iDEMO.png){fig-align="center"}
+
+## Iodine Intake Data
+
+```{r echo=FALSE, eval=FALSE, fig.align="center", fig.width=6, fig.height=3}
+Iode <- read.delim("C:/Users/Hasan MISAII/Desktop/ANR TRANSFOOD/ANR TRANSFOOD/Data_nutrients/Iode.txt")
+Iode <- data.frame(Iode)
+
+
+plot(density(as.numeric(Iode[1,])), main = "Density of Iode Intake", xlab = "Iode Intake", ylab = "Density")
+
+
+library(iDEMO)
+run.gui()
+
+## remove columns including zero
+# Iode_no_zero_cols <- Iode[, !apply(Iode == 0, 2, any)]
+
+# add 1 to avoid log(0)
+Iode <- Iode + 1
+
+# remove row names
+rownames(Iode) <- NULL
+
+# take log of all cells expect first column
+
+log_Iode <- Iode
+log_Iode[, -1] <- log(Iode[, -1])
+
+## apply models
+Iode <- log_Iode
+
+plot(density(as.numeric(Iode[2,])), main = "Density of Iode Intake", xlab = "Iode Intake", ylab = "Density")
+
+
+```
+
+![](Iode_results_iDEMO.png){fig-align="center"}
+
+## Vitamin B12 Intake Data
+
+```{r echo=FALSE, eval=FALSE, fig.align="center", fig.width=6, fig.height=3}
+vitaminB12 <- read.delim("C:/Users/Hasan MISAII/Desktop/ANR TRANSFOOD/ANR TRANSFOOD/Data_nutrients/vitaminB12.txt")
+vitaminB12 <- data.frame(vitaminB12)
+
+
+plot(density(as.numeric(vitaminB12[3,])), main = "Density of vitaminB12 Intake", xlab = "vitaminB12 Intake", ylab = "Density")
+
+
+library(iDEMO)
+run.gui()
+
+## remove columns including zero
+# vitaminB12_no_zero_cols <- vitaminB12[, !apply(vitaminB12 == 0, 2, any)]
+
+# add 1 to avoid log(0)
+vitaminB12 <- vitaminB12 + 1
+
+# remove row names
+rownames(vitaminB12) <- NULL
+
+# take log of all cells expect first column
+
+log_vitaminB12 <- vitaminB12
+log_vitaminB12[, -1] <- log(vitaminB12[, -1])
+
+## apply models
+vitaminB12 <- log_vitaminB12
+
+plot(density(as.numeric(vitaminB12[3,])), main = "Density of vitaminB12 Intake", xlab = "vitaminB12 Intake", ylab = "Density")
+
+
+```
+
+![](vitaminB12_results_iDEMO.png){fig-align="center"}
+
+## Fibre Intake Data
+
+```{r echo=FALSE, eval=FALSE, fig.align="center", fig.width=6, fig.height=3}
+fibre <- read.delim("C:/Users/Hasan MISAII/Desktop/ANR TRANSFOOD/ANR TRANSFOOD/Data_nutrients/fibre.txt")
+fibre <- data.frame(fibre)
+
+
+plot(density(as.numeric(fibre[3,])), main = "Density of fibre Intake", xlab = "fibre Intake", ylab = "Density")
+
+
+library(iDEMO)
+run.gui()
+
+## remove columns including zero
+# fibre_no_zero_cols <- fibre[, !apply(fibre == 0, 2, any)]
+
+# add 1 to avoid log(0)
+fibre <- fibre + 1
+
+# remove row names
+rownames(fibre) <- NULL
+
+# take log of all cells expect first column
+
+log_fibre <- fibre
+log_fibre[, -1] <- log(fibre[, -1])
+
+## apply models
+fibre <- log_fibre
+
+plot(density(as.numeric(fibre[3,])), main = "Density of fibre Intake", xlab = "fibre Intake", ylab = "Density")
+
+
+```
+
+![](fibre_results_iDEMO.png){fig-align="center"}
+
+## SFA Intake Data
+
+```{r echo=FALSE, eval=FALSE, fig.align="center", fig.width=6, fig.height=3}
+SFA <- read.delim("C:/Users/Hasan MISAII/Desktop/ANR TRANSFOOD/ANR TRANSFOOD/Data_nutrients/SFA.txt")
+SFA <- data.frame(SFA)
+
+
+plot(density(as.numeric(SFA[3,])), main = "Density of SFA Intake", xlab = "SFA Intake", ylab = "Density")
+
+
+library(iDEMO)
+run.gui()
+
+## remove columns including zero
+# SFA_no_zero_cols <- SFA[, !apply(SFA == 0, 2, any)]
+
+# add 1 to avoid log(0)
+SFA <- SFA + 1
+
+# remove row names
+rownames(SFA) <- NULL
+
+# take log of all cells expect first column
+
+log_SFA <- SFA
+log_SFA[, -1] <- log(SFA[, -1])
+
+## apply models
+SFA <- log_SFA
+
+plot(density(as.numeric(SFA[1,])), main = "Density of SFA Intake", xlab = "SFA Intake", ylab = "Density")
+
+
+```
+
+![](SFA_results_iDEMO.png){fig-align="center"}
+
+## Density of Nutrients
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=3}
+library(inca3)
+library(dplyr)
+library(tidyr)
+
+
+data("conso_compo_alim_decode")
+data("description_indiv_decode")
+
+## Calculate the nutrients by multiplying the food composition quantity/100 (qte_conso_pond column) by columns aet to iode for each day R24_num and each individual (NOIND)
+# let's say we have 2 or 3 days of consumption for each individual, and we want to calculate the nutrients for each day
+
+conso_compo_alim_decode_nutrients_day <- conso_compo_alim_decode %>%
+  group_by(NOIND, R24_num) %>%
+  mutate(qte_conso_pond = qte_conso_pond / 100) %>%
+  mutate(across(aet:iode, ~ .x * qte_conso_pond)) %>%
+  summarise(across(aet:iode, ~ sum(.x, na.rm = TRUE)), .groups = "drop")
+
+## Remove under reported individuals
+## only choose the NOIND with description_indiv_decode$sousest0==Non
+conso_compo_alim_decode_nutrients_day <- conso_compo_alim_decode_nutrients_day %>%
+  filter(NOIND %in% description_indiv_decode$NOIND[description_indiv_decode$sousest0 == "Non"])
+
+## Remove pregnant individuals with description_indiv_decode$enceinte == "Non"
+conso_compo_alim_decode_nutrients_day <- conso_compo_alim_decode_nutrients_day %>%
+  filter(NOIND %in% description_indiv_decode$NOIND[is.na(description_indiv_decode$enceinte)==TRUE| description_indiv_decode$enceinte == "Non"])
+
+## Remove Breastfeeding individuals with description_indiv_decode$allaite == "Non"
+conso_compo_alim_decode_nutrients_day <- conso_compo_alim_decode_nutrients_day %>%
+  filter(NOIND %in% description_indiv_decode$NOIND[is.na(description_indiv_decode$allaite)==TRUE| description_indiv_decode$allaite == "Non"])
+
+## Calculate the means of nutrients for each individual (NOIND)
+conso_compo_alim_decode_nutrients_individual_mean <- conso_compo_alim_decode_nutrients_day %>%
+  group_by(NOIND) %>%
+  summarise(across(aet:iode, ~ mean(.x, na.rm = TRUE)), .groups = "drop")
+
+## Change NOIND to character
+conso_compo_alim_decode_nutrients_day$NOIND <- as.character(conso_compo_alim_decode_nutrients_day$NOIND)
+
+description_indiv_decode$NOIND <- as.character(description_indiv_decode$NOIND)
+
+## Brings age, sex, BMI for the NOIND from table description_indiv_decode
+conso_compo_alim_decode_nutrients_day_X <- conso_compo_alim_decode_nutrients_day %>%
+  left_join(description_indiv_decode[, c("NOIND", "tage_PS", "sex_PS", "imc")], by = "NOIND")
+
+
+conso_compo_alim_decode_nutrients_day <- conso_compo_alim_decode_nutrients_day_X
+
+conso_compo_alim_decode_nutrients_day$R24_num <- as.factor(conso_compo_alim_decode_nutrients_day$R24_num)
+conso_compo_alim_decode_nutrients_day$tage_PS <- as.factor(conso_compo_alim_decode_nutrients_day$tage_PS)
+conso_compo_alim_decode_nutrients_day$sex_PS <- as.factor(conso_compo_alim_decode_nutrients_day$sex_PS)
+
+## Plot the histogram including the mean and the median and added its density function on it for each nutrient
+library(ggplot2)
+library(gridExtra)
+library(grid)
+library(ggpubr)
+library(ggplotify)
+library(ggthemes)
+library(ggplotify)
+library(ggthemes)
+
+## let's do the plot 
+
+plot_nutrients <- function(data, nutrient) {
+  mean_val <- mean(data[[nutrient]], na.rm = TRUE)
+  median_val <- median(data[[nutrient]], na.rm = TRUE)
+  
+  stat_lines <- data.frame(
+    value = c(mean_val, median_val),
+    stat = c("Mean", "Median")
+  )
+  
+  ggplot(data, aes_string(x = nutrient)) +
+    geom_histogram(aes(y = ..density..), bins = 30, fill = "white", color = "black") +
+    geom_density(color = "red", size = 0.4) +
+    geom_vline(data = stat_lines, aes(xintercept = value, color = stat, linetype = stat), size = 1) +
+    scale_color_manual(name = "Statistic", values = c("Mean" = "blue", "Median" = "green")) +
+    scale_linetype_manual(name = "Statistic", values = c("Mean" = "dashed", "Median" = "dashed")) +
+    theme_minimal() +
+    theme(legend.position = "top") +
+    labs(x = nutrient, y = "Density")
+}
+
+library(patchwork)
+
+nutrients <- c("fibres", "ags", "iode", "vitamine_b12", "calcium", "proteines", "phosphore", "magnesium")
+# Define the nutrients in English
+nutrients_en <- c("Protein", "Fibre", "SFA", "Vitamine_B12", "Magnesium", "Phosphorus", "Calcium", "Iodine")
+
+# Change column names to English
+colnames(conso_compo_alim_decode_nutrients_day)[colnames(conso_compo_alim_decode_nutrients_day) %in% nutrients] <- nutrients_en
+
+nutrients <- nutrients_en
+
+
+# Create plots with legends
+plots <- lapply(nutrients, function(nutrient) {
+  plot_nutrients(conso_compo_alim_decode_nutrients_day, nutrient)
+})
+
+# Combine with shared legend at bottom right
+combined <- wrap_plots(plots, ncol = 3, guides = "collect") +
+    plot_annotation(
+    title = "Original Nutrients Histograms",
+    theme = theme(plot.title = element_text(hjust = 0.5, size = 16))
+  ) &
+  theme(legend.position = "top")
+
+# Save to jpg
+ggsave("original_nutrients_histograms.jpg", combined, width = 12, height = 4)
+#ggsave("nutrients_histograms.pdf", combined, width = 12, height = 4)
+
+print(combined)
+
+
+```
+
+## Log Transformation
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=3}
+
+### ### FRENCH -> ENGLISH
+# Convert to character
+conso_compo_alim_decode_nutrients_day$tage_PS <- as.character(conso_compo_alim_decode_nutrients_day$tage_PS)
+conso_compo_alim_decode_nutrients_day$sex_PS <- as.character(conso_compo_alim_decode_nutrients_day$sex_PS)
+
+# change age and sex variables groups from french to English; like Homme = Male and Femme = Female
+conso_compo_alim_decode_nutrients_day$tage_PS[conso_compo_alim_decode_nutrients_day$tage_PS == "0-11 mois"] <- "0-11 months"
+conso_compo_alim_decode_nutrients_day$tage_PS[conso_compo_alim_decode_nutrients_day$tage_PS == "1-3 ans"] <- "1-3 years"
+conso_compo_alim_decode_nutrients_day$tage_PS[conso_compo_alim_decode_nutrients_day$tage_PS == "4-6 ans"] <- "4-6 years"
+conso_compo_alim_decode_nutrients_day$tage_PS[conso_compo_alim_decode_nutrients_day$tage_PS == "7-10 ans"] <- "7-10 years"
+conso_compo_alim_decode_nutrients_day$tage_PS[conso_compo_alim_decode_nutrients_day$tage_PS == "11-14 ans"] <- "11-14 years"
+conso_compo_alim_decode_nutrients_day$tage_PS[conso_compo_alim_decode_nutrients_day$tage_PS == "15-17 ans"] <- "15-17 years"
+conso_compo_alim_decode_nutrients_day$tage_PS[conso_compo_alim_decode_nutrients_day$tage_PS == "18-44 ans"] <- "18-44 years"
+conso_compo_alim_decode_nutrients_day$tage_PS[conso_compo_alim_decode_nutrients_day$tage_PS == "45-64 ans"] <- "45-64 years"
+conso_compo_alim_decode_nutrients_day$tage_PS[conso_compo_alim_decode_nutrients_day$tage_PS == "65-79 ans"] <- "65-79 years"
+
+#sex
+conso_compo_alim_decode_nutrients_day$sex_PS[conso_compo_alim_decode_nutrients_day$sex_PS == "Homme"] <- "Male"
+conso_compo_alim_decode_nutrients_day$sex_PS[conso_compo_alim_decode_nutrients_day$sex_PS == "Femme"] <- "Female"
+
+
+## factorize the variables
+conso_compo_alim_decode_nutrients_day$tage_PS <- as.factor(conso_compo_alim_decode_nutrients_day$tage_PS)
+conso_compo_alim_decode_nutrients_day$sex_PS <- as.factor(conso_compo_alim_decode_nutrients_day$sex_PS)
+
+
+# Log transformation of nutrients
+conso_compo_alim_decode_nutrients_day_log <- conso_compo_alim_decode_nutrients_day %>%
+  mutate(across(aet:Iodine, ~ log(.x + 1)))  # add 1 to avoid log(0)
+
+# Plot the histogram including the mean and the median and added its density function on it for each nutrient
+plot_nutrients_log <- function(data, nutrient) {
+  mean_val <- mean(data[[nutrient]], na.rm = TRUE)
+  median_val <- median(data[[nutrient]], na.rm = TRUE)
+  
+  stat_lines <- data.frame(
+    value = c(mean_val, median_val),
+    stat = c("Mean", "Median")
+  )
+  
+  ggplot(data, aes_string(x = nutrient)) +
+    geom_histogram(aes(y = ..density..), bins = 30, fill = "white", color = "black") +
+    geom_density(color = "red", size = 0.4) +
+    geom_vline(data = stat_lines, aes(xintercept = value, color = stat, linetype = stat), size = 1) +
+    scale_color_manual(name = "Statistic", values = c("Mean" = "blue", "Median" = "green")) +
+    scale_linetype_manual(name = "Statistic", values = c("Mean" = "dashed", "Median" = "dashed")) +
+    theme_minimal() +
+    theme(legend.position = "top") +
+    labs(x = nutrient, y = "Density")
+}
+
+library(patchwork)
+nutrients <- c("fibres", "ags", "iode", "vitamine_b12", "calcium", "proteines", "phosphore", "magnesium")
+
+########### french -> ENGLISH
+# Define the nutrients in English
+nutrients_en <- c("Protein", "Fibre", "SFA", "Vitamine_B12", "Magnesium", "Phosphorus", "Calcium", "Iodine")
+# Change column names to English
+nutrients <- nutrients_en
+
+
+
+
+
+# Create plots with legends
+plots_log <- lapply(nutrients, function(nutrient) {
+  plot_nutrients_log(conso_compo_alim_decode_nutrients_day_log, nutrient)
+})
+# Combine with shared legend at bottom right
+combined_log <- wrap_plots(plots_log, ncol = 3, guides = "collect") +
+      plot_annotation(
+    title = "Nutrients Histograms (Log Transformed)",
+    theme = theme(plot.title = element_text(hjust = 0.5, size = 16))
+  ) &
+  theme(legend.position = "top")
+
+# Save to PDF
+ggsave("nutrients_histograms_log.pdf", combined_log, width = 12, height = 4)
+print(combined_log)
+
+
+```
+
+## Full Model: Fitting and Accuracy Metrics
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=4}
+library(MuMIn)         # for R²
+library(Metrics)       # for RMSE, MAE
+library(lme4)         # for getME
+
+nutrients <- nutrients_en  # Use the English names for nutrients
+
+# Fit a linear mixed effects model for each nutrient with box-cox transformation
+models <- lapply(nutrients, function(nutrient) {
+  formula <- as.formula(paste(nutrient, "~ 1 + tage_PS + sex_PS + imc + (1|NOIND) + (1|R24_num)"))
+  model <- lmer(formula, data = conso_compo_alim_decode_nutrients_day_log)
+  return(model)
+})
+
+## calculate accuracy metrics for the fitted linear model
+accuracy_metrics <- lapply(models, function(model) {
+  y_true <- getME(model, "y")                  # actual response
+  y_pred <- predict(model)                      # predicted response
+  
+  ## Back-transformation
+   y_pred <- exp(y_pred) - 1                    # reverse log transformation
+  y_true <- exp(y_true) - 1                    # reverse log transformation
+  # Ensure y_true and y_pred are numeric vectors
+  y_true <- as.numeric(y_true)
+  y_pred <- as.numeric(y_pred)
+  
+  # Calculate accuracy metrics
+  data.frame(
+    RMSE = Metrics::rmse(y_true, y_pred),
+    MAE = Metrics::mae(y_true, y_pred),
+    R2_marginal = MuMIn::r.squaredGLMM(model)[1],  # variance explained by fixed effects
+    R2_conditional = MuMIn::r.squaredGLMM(model)[2], # total variance explained
+    AIC = AIC(model),
+    BIC = BIC(model)
+  )
+})
+
+accuracy_df <- do.call(rbind, accuracy_metrics)
+rownames(accuracy_df) <- nutrients
+accuracy_df
+
+```
+
+## Nested Random Effect Model: Fitting and Accuracy Metrics
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=4}
+# use lme for considering correlation in residuals or heteroscedasticity
+library(nlme)
+library(MuMIn)    # for R²
+library(Metrics)  # for RMSE, MAE
+
+#nutrients <- c("fibres", "ags", "iode", "vitamine_b12", "calcium", "proteines", "phosphore", "magnesium")
+
+# Fit a linear mixed-effects model for each nutrient using lme()
+models <- lapply(nutrients, function(nutrient) {
+  formula_fixed <- as.formula(paste(nutrient, "~ 1 + tage_PS + sex_PS + imc"))
+  
+  # lme does not support multiple random effects easily, so use nested structure
+  model <- lme(
+    fixed = formula_fixed,
+    random = ~ 1 | NOIND/R24_num,  # Random intercepts for NOIND and R24_num
+    data = conso_compo_alim_decode_nutrients_day_log,
+    na.action = na.omit
+  )
+  
+  return(model)
+})
+
+# Calculate accuracy metrics
+accuracy_metrics <- lapply(models, function(model) {
+  y_true <- model.response(model.frame(model))                   # actual response
+  y_pred <- predict(model)                       # predicted response
+  
+  ## Back-transformation
+  y_pred <- exp(y_pred) - 1                    # reverse log transformation
+  y_true <- exp(y_true) - 1                    # reverse log transformation
+  # Ensure y_true and y_pred are numeric vectors
+  y_true <- as.numeric(y_true)
+  y_pred <- as.numeric(y_pred)
+  
+  # Calculate accuracy metrics
+  data.frame(
+    RMSE = Metrics::rmse(y_true, y_pred),
+    MAE = Metrics::mae(y_true, y_pred),
+    R2_marginal = MuMIn::r.squaredGLMM(model)[1],
+    R2_conditional = MuMIn::r.squaredGLMM(model)[2],
+    AIC = AIC(model),
+    BIC = BIC(model)
+  )
+})
+
+# Combine results
+accuracy_df <- do.call(rbind, accuracy_metrics)
+rownames(accuracy_df) <- nutrients
+accuracy_df
+
+
+```
+
+## Random Effect Model: Fitting and Accuracy Metrics
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=4}
+library(MuMIn)         # for R²
+library(Metrics)       # for RMSE, MAE
+library(lme4)         # for getME
+
+# Fit a linear mixed effects model for each nutrient
+# nutrients <- c("fibres", "ags", "iode", "vitamine_b12", "calcium", "proteines", "phosphore", "magnesium")
+
+models <- lapply(nutrients, function(nutrient) {
+  formula <- as.formula(paste(nutrient, "~ 1 + tage_PS + sex_PS + imc + (1|NOIND)"))
+  model <- lmer(formula, data = conso_compo_alim_decode_nutrients_day_log)
+  return(model)
+})
+
+## calculate accuracy metrics for the fitted linear model
+accuracy_metrics <- lapply(models, function(model) {
+  y_true <- getME(model, "y")                    # actual response
+  y_pred <- predict(model)                       # predicted response
+  
+  #Back-transformation
+  y_pred <- exp(y_pred) - 1                    # reverse log transformation
+  y_true <- exp(y_true) - 1                    # reverse log transformation
+  # Ensure y_true and y_pred are numeric vectors
+  y_true <- as.numeric(y_true)
+  y_pred <- as.numeric(y_pred)
+  
+  # Calculate accuracy metrics
+  data.frame(
+    RMSE = Metrics::rmse(y_true, y_pred),
+    MAE = Metrics::mae(y_true, y_pred),
+    R2_marginal = MuMIn::r.squaredGLMM(model)[1],  # variance explained by fixed effects
+    R2_conditional = MuMIn::r.squaredGLMM(model)[2], # total variance explained
+    AIC = AIC(model),
+    BIC = BIC(model)
+  )
+})
+
+accuracy_df <- do.call(rbind, accuracy_metrics)
+rownames(accuracy_df) <- nutrients
+accuracy_df
+
+```
+
+## Temporal Variational Model: Fitting and Accuracy Metrics
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=4}
+ library(MuMIn)         # for R²
+library(Metrics)       # for RMSE, MAE
+library(lme4)         # for getME
+
+# Fit a linear mixed effects model for each nutrient
+# nutrients <- c("fibres", "ags", "iode", "vitamine_b12", "calcium", "proteines", "phosphore", "magnesium")
+
+models <- lapply(nutrients, function(nutrient) {
+  formula <- as.formula(paste(nutrient, "~ 1 + tage_PS + sex_PS + imc + (1|R24_num)"))
+  model <- lmer(formula, data = conso_compo_alim_decode_nutrients_day_log)
+  return(model)
+})
+
+## calculate accuracy metrics for the fitted linear model
+accuracy_metrics <- lapply(models, function(model) {
+  y_true <- getME(model, "y")                    # actual response
+  y_pred <- predict(model)                       # predicted response
+  
+  #back-transformation
+  y_pred <- exp(y_pred) - 1                    # reverse log transformation
+  y_true <- exp(y_true) - 1                    # reverse log transformation
+  # Ensure y_true and y_pred are numeric vectors
+  y_true <- as.numeric(y_true)
+  y_pred <- as.numeric(y_pred)
+  
+  # Calculate accuracy metrics
+  data.frame(
+    RMSE = Metrics::rmse(y_true, y_pred),
+    MAE = Metrics::mae(y_true, y_pred),
+    R2_marginal = MuMIn::r.squaredGLMM(model)[1],  # variance explained by fixed effects
+    R2_conditional = MuMIn::r.squaredGLMM(model)[2], # total variance explained
+    AIC = AIC(model),
+    BIC = BIC(model)
+  )
+})
+
+accuracy_df <- do.call(rbind, accuracy_metrics)
+rownames(accuracy_df) <- nutrients
+accuracy_df
+
+```
+
+## Traditional Regression Model: Fitting and Accuracy Metrics
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=4}
+library(MuMIn)         # for R²
+library(Metrics)       # for RMSE, MAE
+library(lme4)         # for getME
+
+# Fit a linear mixed effects model for each nutrient
+# nutrients <- c("fibres", "ags", "iode", "vitamine_b12", "calcium", "proteines", "phosphore", "magnesium")
+
+models <- lapply(nutrients, function(nutrient) {
+  formula <- as.formula(paste(nutrient, "~ 1 + tage_PS + sex_PS + imc"))
+  model <- lm(formula, data = conso_compo_alim_decode_nutrients_day_log)
+  return(model)
+})
+
+## calculate accuracy metrics for the fitted linear model
+accuracy_metrics <- lapply(models, function(model) {
+  y_true <- model.response(model.frame(model))                    # actual response
+  y_pred <- predict(model)                       # predicted response
+  
+  #back-transformation
+  y_pred <- exp(y_pred) - 1                    # reverse log transformation
+  y_true <- exp(y_true) - 1                    # reverse log transformation
+  # Ensure y_true and y_pred are numeric vectors
+  y_true <- as.numeric(y_true)
+  y_pred <- as.numeric(y_pred)
+  
+  # Calculate accuracy metrics
+  data.frame(
+    RMSE = Metrics::rmse(y_true, y_pred),
+    MAE = Metrics::mae(y_true, y_pred),
+    R2_marginal = MuMIn::r.squaredGLMM(model)[1],  # variance explained by fixed effects
+    R2_conditional = MuMIn::r.squaredGLMM(model)[2], # total variance explained
+    AIC = AIC(model),
+    BIC = BIC(model)
+  )
+})
+
+accuracy_df <- do.call(rbind, accuracy_metrics)
+rownames(accuracy_df) <- nutrients
+accuracy_df
+
+```
+
+## Plot density of nutrients for each model
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=4}
+library(lme4)
+library(nlme)
+library(ggplot2)
+library(patchwork)
+library(RColorBrewer)
+
+# nutrients <- c("fibres", "ags", "iode", "vitamine_b12", "calcium", "proteines", "phosphore", "magnesium")
+
+# plot desnsity estimation of each nutrient for models
+models_0 <- lapply(nutrients, function(nutrient) {
+  formula <- as.formula(paste(nutrient, "~ 1 + tage_PS + sex_PS + imc + (1|NOIND) + (1|R24_num)"))
+  model <- lmer(formula, data = conso_compo_alim_decode_nutrients_day_log)
+  return(model)
+})
+
+models_1 <- lapply(nutrients, function(nutrient) {
+  formula <- as.formula(paste(nutrient, "~ 1 + tage_PS + sex_PS + imc + (1|NOIND)"))
+  model <- lmer(formula, data = conso_compo_alim_decode_nutrients_day_log)
+  return(model)
+})
+
+models_2 <- lapply(nutrients, function(nutrient) {
+  formula <- as.formula(paste(nutrient, "~ 1 + tage_PS + sex_PS + imc + (1|R24_num)"))
+  model <- lmer(formula, data = conso_compo_alim_decode_nutrients_day_log)
+  return(model)
+})
+
+models_3 <- lapply(nutrients, function(nutrient) {
+  formula <- as.formula(paste(nutrient, "~ 1 + tage_PS + sex_PS + imc"))
+  model <- lm(formula, data = conso_compo_alim_decode_nutrients_day_log)
+  return(model)
+})
+
+models_4 <- lapply(nutrients, function(nutrient) {
+  formula_fixed <- as.formula(paste(nutrient, "~ 1 + tage_PS + sex_PS + imc"))
+  
+  # lme does not support multiple random effects easily, so use nested structure
+  model <- lme(
+    fixed = formula_fixed,
+    random = ~ 1 | NOIND/R24_num,  # Random intercepts for NOIND and R24_num
+    data = conso_compo_alim_decode_nutrients_day_log,
+    na.action = na.omit
+  )
+  
+  return(model)
+})
+
+# Combine all models into a list for easier handling
+models <- list(models_0, models_1, models_2, models_3, models_4)
+
+# Define nutrient names and model labels
+# nutrients <- c("fibres", "ags", "iode", "vitamine_b12", "calcium", "proteines", "phosphore", "magnesium")
+# Define model names
+model_names <- c("Cross Random Effect", "Random Effect", "Temporal Variational", "Traditional Regression", "Nested Random Effect")
+
+# Function to plot densities for one nutrient
+plot_density_all_models <- function(models, nutrient, model_names, data) {
+  nutrient_index <- which(nutrients == nutrient)
+  observed_values <- data[[nutrient]]
+  
+  # Data frame for observed data
+  observed_df <- data.frame(Value = observed_values, Model = "Observed Data")
+  
+  # Combine predicted values from each model
+  preds <- lapply(1:length(models), function(i) {
+    model <- models[[i]][[nutrient_index]]
+    y_pred <- as.numeric(predict(model))
+    data.frame(Value = y_pred, Model = model_names[i])
+  })
+  
+  # back-transform predictions
+  preds <- lapply(preds, function(df) {
+    df$Value <- exp(df$Value) - 1  # reverse log transformation
+    return(df)
+  })
+  
+  # Combine all predictions and observed data
+  all_data <- do.call(rbind, c(preds, list(observed_df)))
+  
+  # Set color palette
+  all_models <- c("Observed Data", model_names)
+  colors <- c("black", brewer.pal(length(model_names), "Set2"))
+  
+  # Plot with histogram in background for observed data
+  p <- ggplot() +
+    geom_histogram(data = observed_df, aes(x = Value, y = ..density..),
+                   bins = 100, fill = "gray80", color = "gray60", alpha = 0.4) +
+    geom_density(data = all_data, aes(x = Value, color = Model, fill = Model), alpha = 0.3) +
+    labs(#title = paste("Density Estimation:", nutrient),
+         x = nutrient, y = "Density") +
+    scale_color_manual(values = colors) +
+    scale_fill_manual(values = colors) +
+    theme_minimal() +
+    theme(legend.position = "bottom")
+  # Plot
+  #p <- ggplot(all_data, aes(x = Value, color = Model, fill = Model)) +
+  #  geom_density(alpha = 0.3) +
+  #  labs(title = paste("", nutrient),
+  #       x = nutrient, y = "Density") +
+  #  scale_color_manual(values = colors) +
+  #  scale_fill_manual(values = colors) +
+  #  theme_minimal() +
+  #  theme(legend.position = "bottom")
+  
+  return(p)
+}
+
+# Generate plots for all nutrients
+nutrient_plots <- lapply(nutrients, function(nutrient) {
+  plot_density_all_models(models, nutrient, model_names, conso_compo_alim_decode_nutrients_day)
+})
+
+# Combine all into 2x3 layout
+# Combine plots, collect legends, place legend at bottom
+combined_plots <- wrap_plots(nutrient_plots, ncol = 3, nrow = 3, guides = "collect") +
+  plot_annotation(
+    title = "Density of Observed vs Predicted Nutrient Intake Across Different  Models",
+    theme = theme(plot.title = element_text(hjust = 0.5, size = 16))
+  ) & 
+  theme(legend.position = "bottom")  # apply to all plots
+
+
+# Display
+print(combined_plots)
+
+# save the plot
+ggsave("nutrient_density_plots.png", combined_plots, width = 12, height = 8, dpi = 300)
+
+
+```
+
+## Box-Cox Transformation
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=4}
+library(MASS)  # for boxcox function
+library(ggplot2)
+library(dplyr)
+library(caret)
+library(inca3)
+
+# The original dataset
+conso_compo_alim_decode_nutrients_day_boxcox <- conso_compo_alim_decode_nutrients_day
+
+# Define nutrients
+# nutrients <- c("fibres", "ags", "iode", "vitamine_b12", "calcium", "proteines", "phosphore", "magnesium")
+
+# Apply Box-Cox to each nutrient (estimates lambda separately)
+# Prepare to store lambda values
+boxcox_lambdas <- list()
+
+for (nutrient in nutrients) {
+  y <- conso_compo_alim_decode_nutrients_day[[nutrient]]
+  
+  # Shift if needed to ensure positivity
+  if (any(y <= 0, na.rm = TRUE)) {
+    min_positive <- min(y[y > 0], na.rm = TRUE)
+    shift <- min_positive / 2
+    y <- y + shift
+  } else {
+    shift <- 0  # record shift for reproducibility if needed
+  }
+
+  # Fit Box-Cox
+  bc <- BoxCoxTrans(y, na.rm = TRUE)
+
+  # Store the lambda and optional shift
+  boxcox_lambdas[[nutrient]] <- list(
+    lambda = bc$lambda,
+    shift = shift
+  )
+
+  # Apply transformation
+  conso_compo_alim_decode_nutrients_day_boxcox[[nutrient]] <- predict(bc, y)
+}
+
+## Print the lambda values for each nutrient
+lambda_df <- do.call(rbind, lapply(names(boxcox_lambdas), function(nutrient) {
+  data.frame(
+    nutrient = nutrient,
+    lambda = boxcox_lambdas[[nutrient]]$lambda,
+    shift = boxcox_lambdas[[nutrient]]$shift
+  )
+}))
+rownames(lambda_df) <- NULL
+#print(lambda_df)
+
+
+# Plot the Box-Cox transformed data
+# Update plotting function
+plot_nutrients_boxcox <- function(data, nutrient) {
+  mean_val <- mean(data[[nutrient]], na.rm = TRUE)
+  median_val <- median(data[[nutrient]], na.rm = TRUE)
+  
+  stat_lines <- data.frame(
+    value = c(mean_val, median_val),
+    stat = c("Mean", "Median")
+  )
+  
+  ggplot(data, aes_string(x = nutrient)) +
+    geom_histogram(aes(y = ..density..), bins = 30, fill = "white", color = "black") +
+    geom_density(color = "red", size = 0.4) +
+    geom_vline(data = stat_lines, aes(xintercept = value, color = stat, linetype = stat), size = 1) +
+    scale_color_manual(name = "Statistic", values = c("Mean" = "blue", "Median" = "green")) +
+    scale_linetype_manual(name = "Statistic", values = c("Mean" = "dashed", "Median" = "dashed")) +
+    theme_minimal() +
+    theme(legend.position = "top") +
+    labs(x = nutrient, y = "Density")
+}
+
+library(patchwork)
+
+# Create plots with legends
+plots_boxcox <- lapply(nutrients, function(nutrient) {
+  plot_nutrients_boxcox(conso_compo_alim_decode_nutrients_day_boxcox, nutrient)
+})
+
+# Combine with shared legend at bottom right
+combined_boxcox <- wrap_plots(plots_boxcox, ncol = 3, guides = "collect") +
+  plot_annotation(
+    title = "Nutrients Histograms (Box-Cox Transformed)",
+    theme = theme(plot.title = element_text(hjust = 0.5, size = 16))
+  ) &
+  theme(legend.position = "top")
+
+# Save to PDF
+ggsave("nutrients_histograms_boxcox.pdf", combined_boxcox, width = 12, height = 4)
+print(combined_boxcox)
+
+
+```
+
+## Full Model: Fitting and Accuracy Metrics
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=4}
+library(MuMIn)         # for R²
+library(Metrics)       # for RMSE, MAE
+library(lme4)         # for getME
+
+nutrients <- nutrients_en  #c("fibres", "ags", "iode", "vitamine_b12", "calcium", "proteines", "phosphore", "magnesium")
+
+# factorize the variables
+conso_compo_alim_decode_nutrients_day_boxcox$tage_PS <- as.factor(conso_compo_alim_decode_nutrients_day_boxcox$tage_PS)
+
+conso_compo_alim_decode_nutrients_day_boxcox$sex_PS <- as.factor(conso_compo_alim_decode_nutrients_day_boxcox$sex_PS)
+
+conso_compo_alim_decode_nutrients_day_boxcox$R24_num <- as.factor(conso_compo_alim_decode_nutrients_day_boxcox$R24_num)
+
+conso_compo_alim_decode_nutrients_day_boxcox$NOIND <- as.character(conso_compo_alim_decode_nutrients_day_boxcox$NOIND)
+
+# Fit a linear mixed effects model for each nutrient with box-cox transformation
+models <- lapply(nutrients, function(nutrient) {
+  formula <- as.formula(paste(nutrient, "~ 1 + tage_PS + sex_PS + imc + (1|NOIND) + (1|R24_num)"))
+  model <- lmer(formula, data = conso_compo_alim_decode_nutrients_day_boxcox)
+  return(model)
+})
+
+## calculate accuracy metrics for the fitted linear model
+accuracy_metrics <- lapply(models, function(model) {
+  # Extract variable name from model formula
+  nutrient <- as.character(model@call$formula[[2]])
+  lambda <- boxcox_lambdas[[nutrient]]$lambda
+  shift <- boxcox_lambdas[[nutrient]]$shift
+  
+  y_pred <- predict(model)
+  y_true <- getME(model, "y")
+  
+  # Inverse Box-Cox transformation
+  if (lambda == 0) {
+    y_pred_bt <- exp(y_pred) - shift
+    y_true_bt <- exp(y_true) - shift
+  } else {
+    y_pred_bt <- (lambda * y_pred + 1)^(1 / lambda) - shift
+    y_true_bt <- (lambda * y_true + 1)^(1 / lambda) - shift
+  }
+
+  y_pred_bt <- as.numeric(y_pred_bt)
+  y_true_bt <- as.numeric(y_true_bt)
+
+  data.frame(
+    RMSE = Metrics::rmse(y_true_bt, y_pred_bt),
+    MAE = Metrics::mae(y_true_bt, y_pred_bt),
+    R2_marginal = MuMIn::r.squaredGLMM(model)[1],
+    R2_conditional = MuMIn::r.squaredGLMM(model)[2],
+    AIC = AIC(model),
+    BIC = BIC(model)
+  )
+})
+
+
+accuracy_df <- do.call(rbind, accuracy_metrics)
+rownames(accuracy_df) <- nutrients
+accuracy_df
+
+```
+
+## Nested Random Effect Model: Fitting and Accuracy Metrics
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=4}
+# use lme for considering correlation in residuals or heteroscedasticity
+library(nlme)
+library(MuMIn)    # for R²
+library(Metrics)  # for RMSE, MAE
+
+nutrients <- nutrients_en # c("fibres", "ags", "iode", "vitamine_b12", "calcium", "proteines", "phosphore", "magnesium")
+
+# Fit a linear mixed-effects model for each nutrient using lme()
+models <- lapply(nutrients, function(nutrient) {
+  formula_fixed <- as.formula(paste(nutrient, "~ 1 + tage_PS + sex_PS + imc"))
+  
+  # lme does not support multiple random effects easily, so use nested structure
+  model <- lme(
+    fixed = formula_fixed,
+    random = ~ 1 | NOIND/R24_num,  # Random intercepts for NOIND and R24_num
+    data = conso_compo_alim_decode_nutrients_day_boxcox,
+    na.action = na.omit
+  )
+  
+  return(model)
+})
+
+
+## calculate accuracy metrics for the fitted linear model
+accuracy_metrics <- Map(function(model, nutrient) {
+  lambda <- boxcox_lambdas[[nutrient]]$lambda
+  shift <- boxcox_lambdas[[nutrient]]$shift
+
+  y_true <- model.response(model.frame(model))  # actual response
+  y_pred <- predict(model)                      # predicted response
+
+  # Inverse Box-Cox
+  if (lambda == 0) {
+    y_pred_bt <- exp(y_pred) - shift
+    y_true_bt <- exp(y_true) - shift
+  } else {
+    y_pred_bt <- (lambda * y_pred + 1)^(1 / lambda) - shift
+    y_true_bt <- (lambda * y_true + 1)^(1 / lambda) - shift
+  }
+
+  y_pred_bt <- as.numeric(y_pred_bt)
+  y_true_bt <- as.numeric(y_true_bt)
+
+  data.frame(
+    RMSE = Metrics::rmse(y_true_bt, y_pred_bt),
+    MAE = Metrics::mae(y_true_bt, y_pred_bt),
+    R2_marginal = MuMIn::r.squaredGLMM(model)[1],
+    R2_conditional = MuMIn::r.squaredGLMM(model)[2],
+    AIC = AIC(model),
+    BIC = BIC(model)
+  )
+}, model = models, nutrient = nutrients)
+
+
+
+accuracy_df <- do.call(rbind, accuracy_metrics)
+rownames(accuracy_df) <- nutrients
+accuracy_df
+
+
+```
+
+## Random Effect Model: Fitting and Accuracy Metrics
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=4}
+library(MuMIn)         # for R²
+library(Metrics)       # for RMSE, MAE
+library(lme4)         # for getME
+
+# Fit a linear mixed effects model for each nutrient
+nutrients <- nutrients_en # c("fibres", "ags", "iode", "vitamine_b12", "calcium", "proteines", "phosphore", "magnesium")
+
+models <- lapply(nutrients, function(nutrient) {
+  formula <- as.formula(paste(nutrient, "~ 1 + tage_PS + sex_PS + imc + (1|NOIND)"))
+  model <- lmer(formula, data = conso_compo_alim_decode_nutrients_day_boxcox)
+  return(model)
+})
+
+## calculate accuracy metrics for the fitted linear model
+accuracy_metrics <- lapply(models, function(model) {
+  # Extract variable name from model formula
+  nutrient <- as.character(model@call$formula[[2]])
+  lambda <- boxcox_lambdas[[nutrient]]$lambda
+  shift <- boxcox_lambdas[[nutrient]]$shift
+  
+  y_pred <- predict(model)
+  y_true <- getME(model, "y")
+  
+  # Inverse Box-Cox transformation
+  if (lambda == 0) {
+    y_pred_bt <- exp(y_pred) - shift
+    y_true_bt <- exp(y_true) - shift
+  } else {
+    y_pred_bt <- (lambda * y_pred + 1)^(1 / lambda) - shift
+    y_true_bt <- (lambda * y_true + 1)^(1 / lambda) - shift
+  }
+
+  y_pred_bt <- as.numeric(y_pred_bt)
+  y_true_bt <- as.numeric(y_true_bt)
+
+  data.frame(
+    RMSE = Metrics::rmse(y_true_bt, y_pred_bt),
+    MAE = Metrics::mae(y_true_bt, y_pred_bt),
+    R2_marginal = MuMIn::r.squaredGLMM(model)[1],
+    R2_conditional = MuMIn::r.squaredGLMM(model)[2],
+    AIC = AIC(model),
+    BIC = BIC(model)
+  )
+})
+
+
+accuracy_df <- do.call(rbind, accuracy_metrics)
+rownames(accuracy_df) <- nutrients
+accuracy_df
+```
+
+## Temporal Variational Model: Fitting and Accuracy Metrics
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=4}
+ library(MuMIn)         # for R²
+library(Metrics)       # for RMSE, MAE
+library(lme4)         # for getME
+
+# Fit a linear mixed effects model for each nutrient
+nutrients <- nutrients_en  # c("fibres", "ags", "iode", "vitamine_b12", "calcium", "proteines", "phosphore", "magnesium")
+
+models <- lapply(nutrients, function(nutrient) {
+  formula <- as.formula(paste(nutrient, "~ 1 + tage_PS + sex_PS + imc + (1|R24_num)"))
+  model <- lmer(formula, data = conso_compo_alim_decode_nutrients_day_boxcox)
+  return(model)
+})
+
+## calculate accuracy metrics for the fitted linear model
+accuracy_metrics <- lapply(models, function(model) {
+  # Extract variable name from model formula
+  nutrient <- as.character(model@call$formula[[2]])
+  lambda <- boxcox_lambdas[[nutrient]]$lambda
+  shift <- boxcox_lambdas[[nutrient]]$shift
+  
+  y_pred <- predict(model)
+  y_true <- getME(model, "y")
+  
+  # Inverse Box-Cox transformation
+  if (lambda == 0) {
+    y_pred_bt <- exp(y_pred) - shift
+    y_true_bt <- exp(y_true) - shift
+  } else {
+    y_pred_bt <- (lambda * y_pred + 1)^(1 / lambda) - shift
+    y_true_bt <- (lambda * y_true + 1)^(1 / lambda) - shift
+  }
+
+  y_pred_bt <- as.numeric(y_pred_bt)
+  y_true_bt <- as.numeric(y_true_bt)
+
+  data.frame(
+    RMSE = Metrics::rmse(y_true_bt, y_pred_bt),
+    MAE = Metrics::mae(y_true_bt, y_pred_bt),
+    R2_marginal = MuMIn::r.squaredGLMM(model)[1],
+    R2_conditional = MuMIn::r.squaredGLMM(model)[2],
+    AIC = AIC(model),
+    BIC = BIC(model)
+  )
+})
+
+
+accuracy_df <- do.call(rbind, accuracy_metrics)
+rownames(accuracy_df) <- nutrients
+accuracy_df
+
+```
+
+## Traditional Regression Model: Fitting and Accuracy Metrics
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=4}
+library(MuMIn)         # for R²
+library(Metrics)       # for RMSE, MAE
+library(lme4)         # for getME
+
+# Fit a linear mixed effects model for each nutrient
+nutrients <-  nutrients_en # c("fibres", "ags", "iode", "vitamine_b12", "calcium", "proteines", "phosphore", "magnesium")
+
+models <- lapply(nutrients, function(nutrient) {
+  formula <- as.formula(paste(nutrient, "~ 1 + tage_PS + sex_PS + imc"))
+  model <- lm(formula, data = conso_compo_alim_decode_nutrients_day_boxcox)
+  return(model)
+})
+
+## calculate accuracy metrics for the fitted linear model
+## calculate accuracy metrics for the fitted linear model
+accuracy_metrics <- Map(function(model, nutrient) {
+  lambda <- boxcox_lambdas[[nutrient]]$lambda
+  shift <- boxcox_lambdas[[nutrient]]$shift
+
+  y_true <- model.response(model.frame(model))  # actual response
+  y_pred <- predict(model)                      # predicted response
+
+  # Inverse Box-Cox
+  if (lambda == 0) {
+    y_pred_bt <- exp(y_pred) - shift
+    y_true_bt <- exp(y_true) - shift
+  } else {
+    y_pred_bt <- (lambda * y_pred + 1)^(1 / lambda) - shift
+    y_true_bt <- (lambda * y_true + 1)^(1 / lambda) - shift
+  }
+
+  y_pred_bt <- as.numeric(y_pred_bt)
+  y_true_bt <- as.numeric(y_true_bt)
+
+  data.frame(
+    RMSE = Metrics::rmse(y_true_bt, y_pred_bt),
+    MAE = Metrics::mae(y_true_bt, y_pred_bt),
+    R2_marginal = MuMIn::r.squaredGLMM(model)[1],
+    R2_conditional = MuMIn::r.squaredGLMM(model)[2],
+    AIC = AIC(model),
+    BIC = BIC(model)
+  )
+}, model = models, nutrient = nutrients)
+
+
+accuracy_df <- do.call(rbind, accuracy_metrics)
+rownames(accuracy_df) <- nutrients
+accuracy_df
+
+```
+
+## Plot density of nutrients for each model
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=4}
+library(lme4)
+library(nlme)
+library(ggplot2)
+library(patchwork)
+library(RColorBrewer)
+
+nutrients <- nutrients_en  # c("fibres", "ags", "iode", "vitamine_b12", "calcium", "proteines", "phosphore", "magnesium")
+
+# plot desnsity estimation of each nutrient for models
+models_0 <- lapply(nutrients, function(nutrient) {
+  formula <- as.formula(paste(nutrient, "~ 1 + tage_PS + sex_PS + imc + (1|NOIND) + (1|R24_num)"))
+  model <- lmer(formula, data = conso_compo_alim_decode_nutrients_day_boxcox)
+  return(model)
+})
+
+models_1 <- lapply(nutrients, function(nutrient) {
+  formula <- as.formula(paste(nutrient, "~ 1 + tage_PS + sex_PS + imc + (1|NOIND)"))
+  model <- lmer(formula, data = conso_compo_alim_decode_nutrients_day_boxcox)
+  return(model)
+})
+
+models_2 <- lapply(nutrients, function(nutrient) {
+  formula <- as.formula(paste(nutrient, "~ 1 + tage_PS + sex_PS + imc + (1|R24_num)"))
+  model <- lmer(formula, data = conso_compo_alim_decode_nutrients_day_boxcox)
+  return(model)
+})
+
+models_3 <- lapply(nutrients, function(nutrient) {
+  formula <- as.formula(paste(nutrient, "~ 1 + tage_PS + sex_PS + imc"))
+  model <- lm(formula, data = conso_compo_alim_decode_nutrients_day_boxcox)
+  return(model)
+})
+
+models_4 <- lapply(nutrients, function(nutrient) {
+  formula_fixed <- as.formula(paste(nutrient, "~ 1 + tage_PS + sex_PS + imc"))
+  
+  # lme does not support multiple random effects easily, so use nested structure
+  model <- lme(
+    fixed = formula_fixed,
+    random = ~ 1 | NOIND/R24_num,  # Random intercepts for NOIND and R24_num
+    data = conso_compo_alim_decode_nutrients_day_boxcox,
+    na.action = na.omit
+  )
+  
+  return(model)
+})
+
+# Combine all models into a list for easier handling
+models <- list(models_0, models_1, models_2, models_3, models_4)
+
+# Define nutrient names and model labels
+nutrients <- nutrients_en  # c("fibres", "ags", "iode", "vitamine_b12", "calcium", "proteines", "phosphore", "magnesium")
+# Define model names
+model_names <- c("Cross Random Effect", "Random Effect", "Temporal Variational", "Traditional Regression", "Nested Random Effect")
+
+# Function to plot densities for one nutrient
+plot_density_all_models <- function(models, nutrient, model_names, data) {
+  nutrient_index <- which(nutrients == nutrient)
+  observed_values <- data[[nutrient]]
+  
+  # Data frame for observed data
+  observed_df <- data.frame(Value = observed_values, Model = "Observed Data")
+  
+  # Combine predicted values from each model
+ # preds <- lapply(1:length(models), function(i) {
+  #  model <- models[[i]][[nutrient_index]]
+  #  y_pred <- as.numeric(predict(model))
+  #  data.frame(Value = y_pred, Model = model_names[i])
+  #})
+  
+  # Usual intakes using different models
+   # Predict
+  #y_pred <- predict(model)
+  #y_pred <- predict(model, level = 1)  # includes only u_i
+  #y_pred <- predict(model, re.form = ~ (1 | NOIND), allow.new.levels = TRUE)  # includes only u_i
+  #y_pred <- predict(model, re.form = NA, allow.new.levels = TRUE)  # only fixed effects
+  #y_pred <- predict(model, newdata = data_used, re.form = ~ (1 | NOIND))
+
+    
+  filtered_data <- data  # data is already filtered to "18-44 ans"
+
+  preds <- lapply(seq_along(models), function(i) {
+  model <- models[[i]][[nutrient_index]]
+
+  if (i == 5) {
+    # lme model — must filter the training data to match the filtered_data
+    model_data <- model.frame(model)
+    index <- which(model_data$tage_PS == model_data$tage_PS)
+    y_pred <- as.numeric(predict(model, level = 1)[index])
+  } else {
+    y_pred <- if (i == 1 | i == 2) {
+      predict(model, newdata = filtered_data, re.form = ~ (1 | NOIND), allow.new.levels = TRUE)
+    } else if (i == 3 | i == 4) {
+      predict(model, newdata = filtered_data, re.form = NA, allow.new.levels = TRUE)
+    }
+  }
+
+  data.frame(Value = as.numeric(y_pred), Model = model_names[i])
+})
+
+    
+  
+  # back-transform predictions (back-transformation od box-cox)
+  preds <- lapply(preds, function(df) {
+    lambda <- boxcox_lambdas[[nutrient]]$lambda
+    shift <- boxcox_lambdas[[nutrient]]$shift
+    
+    if (lambda == 0) {
+      df$Value <- exp(df$Value) - shift  # reverse log transformation
+    } else {
+      df$Value <- (lambda * df$Value + 1)^(1 / lambda) - shift  # reverse Box-Cox transformation
+    }
+    return(df)
+  })
+
+
+  # Combine all predictions and observed data
+  all_data <- do.call(rbind, c(preds, list(observed_df)))
+  
+  # Set color palette
+  all_models <- c("Observed Data", model_names)
+  colors <- c("black", brewer.pal(length(model_names), "Set2"))
+  #colors <- c("#66C2A5", "black", "#FC8D62", "#8DA0CB", "#A6D854", "#E78AC3")
+  
+  # Add flag for model type to customize plotting
+  all_data$highlight <- ifelse(all_data$Model == "Nested Random Effect", "highlight", "normal")
+  
+  # Plot with histogram in background for observed data
+  #p <- ggplot() +
+    # Background histogram of observed data
+  #  geom_histogram(data = observed_df, aes(x = Value, y = ..density..),
+   #                bins = 100, fill = "gray80", color = "gray60", alpha = 0.4) +
+    
+    # Filled density only for the nested random effect model
+    #geom_density(data = subset(all_data, highlight == "highlight"),
+     #            aes(x = Value, fill = Model), alpha = 0.3, color = NA) +
+    
+    # Line densities for all models (including nested)
+   # geom_density(data = all_data, aes(x = Value, color = Model), linewidth = 1) +
+
+   #scale_color_manual(values = colors) +
+   #scale_fill_manual(values = colors) +
+    
+    #labs(x = nutrient, y = "Density") +
+    #theme_minimal() +
+    #theme(legend.position = "bottom")
+    # Plot with histogram in background for observed data
+  p <- ggplot() +
+    geom_histogram(data = observed_df, aes(x = Value, y = ..density..),
+                   bins = 100, fill = "gray80", color = "gray60", alpha = 0.4) +
+    geom_density(data = all_data, aes(x = Value, color = Model, fill = Model), alpha = 0.3) +
+    labs(#title = paste("Density Estimation:", nutrient),
+         x = nutrient, y = "Density") +
+    scale_color_manual(values = colors) +
+    scale_fill_manual(values = colors) +
+    theme_minimal() +
+    theme(legend.position = "bottom")
+
+  
+  # Plot
+  #p <- ggplot(all_data, aes(x = Value, color = Model, fill = Model)) +
+  #  geom_density(alpha = 0.3) +
+  #  labs(title = paste("", nutrient),
+  #       x = nutrient, y = "Density") +
+  #  scale_color_manual(values = colors) +
+  #  scale_fill_manual(values = colors) +
+  #  theme_minimal() +
+  #  theme(legend.position = "bottom")
+  
+  return(p)
+}
+
+
+data_subset <- conso_compo_alim_decode_nutrients_day %>%
+  filter(tage_PS == tage_PS)
+
+# Generate plots for all nutrients
+nutrient_plots <- lapply(nutrients, function(nutrient) {
+  plot_density_all_models(models, nutrient, model_names, data_subset)
+})
+
+# Combine all into 2x3 layout
+# Combine plots, collect legends, place legend at bottom
+combined_plots <- wrap_plots(nutrient_plots, ncol = 2, nrow = 4, guides = "collect") +
+  plot_annotation(
+    title = "Density of Observed vs Predicted Nutrient Intake Across Different  Models",
+    theme = theme(plot.title = element_text(hjust = 0.5, size = 16))
+  ) & 
+  theme(legend.position = "bottom")  # apply to all plots
+
+
+# Display
+print(combined_plots)
+
+# save the plot
+ggsave("nutrient_density_plots.png", combined_plots, width = 12, height = 8, dpi = 300)
+
+
+##########
+### Explanation 
+#########
+### Model M_0
+fixed_pred_0 <- predict(models_0[[1]], re.form = NA)  # only fixed effects
+var_fixed_0 <- var(fixed_pred_0, na.rm = TRUE)
+
+R2_marginal_0    <- var_fixed_0 / (var_fixed_0 + 0.4112 + 0.0097 + 1.9996)
+R2_conditional_0 <- (var_fixed_0 + 0.4112 + 0.0097) / (var_fixed_0 + 0.4112 + 0.0097 + 1.9996)
+
+
+### Model M_4
+
+fixed_pred_4 <- predict(models_4[[1]], level = 0)  # fixed part only
+var_fixed_4 <- var(fixed_pred_4, na.rm = TRUE)
+
+
+R2_marginal_4    <- var_fixed_4 / (var_fixed_4 + 0.4075 + 1.7808 + 0.2288)
+R2_conditional_4 <- (var_fixed_4 + 0.4075 + 1.7808) / (var_fixed_4 + 0.4075 + 1.7808 + 0.2288)
+
+
+
+
+
+```
+
+## Daily nutrient intake probability density distributions across age and sex groups
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=4}
+## Habitual nutrient intake probability density distributions across age (tage_PS) and sex (sex_PS) groups
+library(ggplot2)
+library(dplyr)
+library(patchwork)
+library(RColorBrewer)
+# Define nutrients
+nutrients <- nutrients_en  # c("fibres", "ags", "iode", "vitamine_b12", "calcium", "proteines", "phosphore", "magnesium")
+
+# Function to plot density for each nutrient
+plot_nutrients_density <- function(data, nutrient) {
+  mean_val <- mean(data[[nutrient]], na.rm = TRUE)
+  median_val <- median(data[[nutrient]], na.rm = TRUE)
+  
+  stat_lines <- data.frame(
+    value = c(mean_val, median_val),
+    stat = c("Mean", "Median")
+  )
+  
+  ggplot(data, aes_string(x = nutrient, fill = "tage_PS", color = "tage_PS")) +
+    geom_density(alpha = 0.3) +
+    geom_vline(data = stat_lines, aes(xintercept = value, linetype = stat), size = 1) +
+    facet_wrap(~ sex_PS) +
+    scale_color_manual(name = "Statistic", values = c("Mean" = "blue", "Median" = "green")) +
+    scale_fill_brewer(palette = "Set2") +
+    labs(x = nutrient, y = "Density") +
+    theme_minimal() +
+    theme(legend.position = "top")
+}
+
+correct_order <- c(
+  "0-11 months", "1-3 years", "4-6 years", "7-10 years",
+  "11-14 years", "15-17 years",
+  "18-44 years", "45-64 years", "65-79 years"
+)
+
+conso_compo_alim_decode_nutrients_day$tage_PS <- factor(
+  conso_compo_alim_decode_nutrients_day$tage_PS,
+  levels = correct_order,
+  ordered = TRUE
+)
+
+
+# Create plots for each nutrient
+plots_nutrients <- lapply(nutrients, function(nutrient) {
+  plot_nutrients_density(conso_compo_alim_decode_nutrients_day, nutrient)
+})
+
+# Combine plots with shared legend at bottom right
+combined_nutrients <- wrap_plots(plots_nutrients, ncol = 2, guides = "collect") +
+  plot_annotation(
+    title = "Nutrients Density Distributions Across Age and Sex Groups",
+    theme = theme(plot.title = element_text(hjust = 0.5, size = 16))
+  ) &
+  theme(legend.position = "top")
+
+# Display combined plot
+print(combined_nutrients)
+
+# Save to PDF
+#ggsave("nutrients_density_distributions.pdf", combined_nutrients, width = 12, height = 4)
+
+```
+
+## Habitual nutrient intake probability density distributions estimated using nested model across age and sex groups
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=4}
+## Habitual nutrient intake probability density distributions estimated by nested model across age (tage_PS) and sex (sex_PS) groups
+library(ggplot2)
+library(dplyr)
+library(patchwork)
+library(RColorBrewer)
+# Define nutrients
+nutrients <- nutrients_en # c("fibres", "ags", "iode", "vitamine_b12", "calcium", "proteines", "phosphore", "magnesium")
+
+
+# Nested model for each nutrient
+models_4 <- lapply(nutrients, function(nutrient) {
+  formula_fixed <- as.formula(paste(nutrient, "~ 1 + tage_PS + sex_PS + imc"))
+  
+  # lme does not support multiple random effects easily, so use nested structure
+  model <- lme(
+    fixed = formula_fixed,
+    random = ~ 1 | NOIND/R24_num,  # Random intercepts for NOIND and R24_num
+    data = conso_compo_alim_decode_nutrients_day_boxcox,
+    na.action = na.omit
+  )
+  return(model)
+}
+)
+
+
+# Function to plot predicted density across age and sex for one nutrient
+plot_predicted_density_by_group <- function(nutrient, model, data, lambda, shift) {
+  # Get the model frame (used rows)
+  model_data <- model.frame(model)
+
+  # Predict
+  y_pred <- predict(model, level = 1)
+
+  # Back-transform
+  y_pred_bt <- if (lambda == 0) {
+    exp(y_pred) - shift
+  } else {
+    (lambda * y_pred + 1)^(1 / lambda) - shift
+  }
+  y_pred_bt <- as.numeric(y_pred_bt)
+  
+  # back-transform the model_data
+  model_data[[nutrient]] <- if (lambda == 0) {
+    exp(model_data[[nutrient]]) - shift
+  } else {
+    (lambda * model_data[[nutrient]] + 1)^(1 / lambda) - shift
+  }
+  
+  mean_val <- mean(model_data[[nutrient]], na.rm = TRUE)
+  median_val <- median(model_data[[nutrient]], na.rm = TRUE)
+  
+  stat_lines <- data.frame(
+    value = c(mean_val, median_val),
+    stat = c("Mean (Real Data)", "Median (Real Data)")
+  )
+  
+  # Build prediction data frame using model_data
+  pred_df <- data.frame(
+    tage_PS = model_data$tage_PS,
+    sex_PS  = model_data$sex_PS,
+    predicted = y_pred_bt
+  )
+  
+  correct_order <- c(
+    "0-11 months", "1-3 years", "4-6 years", "7-10 years",
+    "11-14 years", "15-17 years",
+    "18-44 years", "45-64 years", "65-79 years"
+  )
+
+
+  pred_df$tage_PS <- factor(
+  pred_df$tage_PS,
+  levels = correct_order,
+  ordered = TRUE
+  )
+
+
+  # Plot
+  ggplot(pred_df, aes(x = predicted, fill = tage_PS)) +
+    geom_density(alpha = 0.3) +
+    geom_vline(data = stat_lines, aes(xintercept = value, linetype = stat), size = 1) +
+    facet_wrap(~ sex_PS) +
+    scale_color_manual(name = "Statistic", values = c("Mean" = "blue", "Median" = "green")) +
+    scale_fill_brewer(palette = "Set2") +
+    labs(x = nutrient, y = "Density") +
+    theme_minimal() +
+    theme(legend.position = "top")
+}
+
+
+    
+
+
+# Create list of plots for all nutrients
+plots_predicted_model_4 <- lapply(seq_along(nutrients), function(i) {
+  nutrient <- nutrients[i]
+  model <- models_4[[i]]
+  lambda <- boxcox_lambdas[[nutrient]]$lambda
+  shift  <- boxcox_lambdas[[nutrient]]$shift
+
+  plot_predicted_density_by_group(
+    nutrient = nutrient,
+    model = model,
+    data = conso_compo_alim_decode_nutrients_day_boxcox,
+    lambda = lambda,
+    shift = shift
+  )
+})
+
+
+
+library(patchwork)
+
+combined_predicted_density_plots <- wrap_plots(plots_predicted_model_4, ncol = 2, guides = "collect") +
+  plot_annotation(
+    title = "Predicted Habitual Nutrient Intake Across Age and Sex groups by Nested Model",
+    theme = theme(plot.title = element_text(hjust = 0.5, size = 16))
+  ) &
+  theme(legend.position = "top")
+
+# Show the plots
+print(combined_predicted_density_plots)
+
+
+
+ 
+
+
+
+
+
+```
+
+## Statistics and Quantiles of Nutrients
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=4}
+# function to calculate statistics and quantiles for each nutrient predicted by nested model
+library(ggplot2)
+library(dplyr)
+
+
+Statistcs_predicted_density_by_group <- function(nutrient, model, data, lambda, shift) {
+  # Get the model frame (used rows)
+  model_data <- model.frame(model)
+  # Get the rows used in the model 
+  model_rows <- as.integer(rownames(model_data))
+  data_used <- data[model_rows, ]
+
+  # Predict
+  #y_pred <- predict(model)
+  y_pred <- predict(model, level = 1)  # includes only u_i ::::: M_4
+  #y_pred <- predict(model, re.form = ~ (1 | NOIND), allow.new.levels = TRUE)  # includes only u_i
+  #y_pred <- predict(model, newdata = data_used, re.form = NA)  # only fixed effects :::::: M_2 and M_3
+  #y_pred <- predict(model, newdata = data_used, re.form = ~ (1 | NOIND)) # includes only u_i  :::::: M_0 and M_1
+
+
+  # Back-transform
+  y_pred_bt <- if (lambda == 0) {
+    exp(y_pred) - shift
+  } else {
+    (lambda * y_pred + 1)^(1 / lambda) - shift
+  }
+  y_pred_bt <- as.numeric(y_pred_bt)
+  
+  # back-transform the model_data
+  model_data[[nutrient]] <- if (lambda == 0) {
+    exp(model_data[[nutrient]]) - shift
+  } else {
+    (lambda * model_data[[nutrient]] + 1)^(1 / lambda) - shift
+  }
+  
+  mean_val <- mean(model_data[[nutrient]], na.rm = TRUE)
+  median_val <- median(model_data[[nutrient]], na.rm = TRUE)
+  
+  stat_lines <- data.frame(
+    value = c(mean_val, median_val),
+    stat = c("Mean (Real Data)", "Median (Real Data)")
+  )
+  
+  
+  # Build prediction data frame using model_data
+  pred_df <- data.frame(
+  NOIND = data_used$NOIND,
+  tage_PS = model_data$tage_PS,
+  sex_PS  = model_data$sex_PS,
+  observed = model_data[[nutrient]],
+  predicted = y_pred_bt
+  )
+
+  
+  correct_order <- c(
+    "0-11 months", "1-3 years", "4-6 years", "7-10 years",
+    "11-14 years", "15-17 years",
+    "18-44 years", "45-64 years", "65-79 years"
+  )
+
+  pred_df$tage_PS <- factor(
+  pred_df$tage_PS,
+  levels = correct_order,
+  ordered = TRUE
+  )
+
+
+  # data frame for statistics
+  return(pred_df)
+
+}
+
+
+# Create list for all nutrients
+## Nested Model
+predicted_model_4 <- lapply(seq_along(nutrients), function(i) {
+  nutrient <- nutrients[i]
+  model <- models_4[[i]]
+  lambda <- boxcox_lambdas[[nutrient]]$lambda
+  shift  <- boxcox_lambdas[[nutrient]]$shift
+
+  Statistcs_predicted_density_by_group(
+    nutrient = nutrient,
+    model = model,
+    data = conso_compo_alim_decode_nutrients_day_boxcox,
+    lambda = lambda,
+    shift = shift
+  )
+})
+
+# calculate statistics and quantiles for each nutrient for all and across age and sex groups
+names(predicted_model_4) <- nutrients
+
+pred_df_all_M4 <- dplyr::bind_rows(predicted_model_4, .id = "nutrient")
+
+# Calculate overall statistics and quantiles for each nutrient
+overall_stats <- pred_df_all_M4 %>%
+  group_by(nutrient) %>%
+  summarise(
+    Mean   = round(mean(predicted, na.rm = TRUE), 3),
+    SD     = round(sd(predicted, na.rm = TRUE), 3),
+    min    = round(min(predicted, na.rm = TRUE), 3),
+    Q1     = round(quantile(predicted, 0.25, na.rm = TRUE), 3),
+    Median = round(median(predicted, na.rm = TRUE), 3),
+    Q3     = round(quantile(predicted, 0.75, na.rm = TRUE), 3),
+    max    = round(max(predicted, na.rm = TRUE), 3),
+    N      = n()
+  )
+
+
+# Grouped summarises (age * sex)
+grouped_stats <- pred_df_all_M4 %>%
+  group_by(nutrient, tage_PS, sex_PS) %>%
+  summarise(
+    Mean   = round(mean(predicted, na.rm = TRUE), 3),
+    SD     = round(sd(predicted, na.rm = TRUE), 3),
+    min    = round(min(predicted, na.rm = TRUE), 3),
+    Q1     = round(quantile(predicted, 0.25, na.rm = TRUE), 3),
+    Median = round(median(predicted, na.rm = TRUE), 3),
+    Q3     = round(quantile(predicted, 0.75, na.rm = TRUE), 3),
+    max    = round(max(predicted, na.rm = TRUE), 3),
+    N      = n(),
+    .groups = "drop"
+  )
+
+# Print overall statistics
+print(overall_stats)
+# Print grouped statistics
+print(grouped_stats)
+# Save statistics to CSV files
+write.csv(overall_stats, "overall_nutrient_statistics_M4.txt", row.names = FALSE)
+write.csv(grouped_stats, "grouped_nutrient_statistics_M4.txt", row.names = FALSE)
+
+
+## plot observed vs predicted values for each nutrient, (data = pred_df_all)
+ggplot(pred_df_all_M4, aes(x = observed, y = predicted, color = tage_PS, shape = sex_PS)) +
+  geom_point(alpha = 0.6, size = 2) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "black") +  # 1:1 reference
+  facet_wrap(~ nutrient, scales = "free") +
+  scale_color_brewer(palette = "Set2") +
+  labs(
+    title = "Observed vs. Predicted Nutrient Intake for Nested Model",
+    subtitle = "Colored by Age Group, Shaped by Sex",
+    x = "Observed Intake (scale/day)",
+    y = "Predicted Intake (scale/day)",
+    color = "Age Group",
+    shape = "Sex"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, size = 14)
+  )
+
+## save the plot
+ggsave("observed_vs_predicted_M4.png", width = 12, height = 8, dpi = 300)
+
+## Full Model: crossed random effects
+predicted_model_0 <- lapply(seq_along(nutrients), function(i) {
+  nutrient <- nutrients[i]
+  model <- models_0[[i]]
+  lambda <- boxcox_lambdas[[nutrient]]$lambda
+  shift  <- boxcox_lambdas[[nutrient]]$shift
+
+  Statistcs_predicted_density_by_group(
+    nutrient = nutrient,
+    model = model,
+    data = conso_compo_alim_decode_nutrients_day_boxcox,
+    lambda = lambda,
+    shift = shift
+  )
+})
+
+# calculate statistics and quantiles for each nutrient for all and across age and sex groups
+names(predicted_model_0) <- nutrients
+
+pred_df_all_M0 <- dplyr::bind_rows(predicted_model_0, .id = "nutrient")
+
+# Calculate overall statistics and quantiles for each nutrient
+overall_stats <- pred_df_all_M0 %>%
+  group_by(nutrient) %>%
+  summarise(
+    Mean   = round(mean(predicted, na.rm = TRUE), 3),
+    SD     = round(sd(predicted, na.rm = TRUE), 3),
+    min    = round(min(predicted, na.rm = TRUE), 3),
+    Q1     = round(quantile(predicted, 0.25, na.rm = TRUE), 3),
+    Median = round(median(predicted, na.rm = TRUE), 3),
+    Q3     = round(quantile(predicted, 0.75, na.rm = TRUE), 3),
+    max    = round(max(predicted, na.rm = TRUE), 3),
+    N      = n()
+  )
+
+
+# Grouped summarises (age * sex)
+grouped_stats <- pred_df_all_M0 %>%
+  group_by(nutrient, tage_PS, sex_PS) %>%
+  summarise(
+    Mean   = round(mean(predicted, na.rm = TRUE), 3),
+    SD     = round(sd(predicted, na.rm = TRUE), 3),
+    min    = round(min(predicted, na.rm = TRUE), 3),
+    Q1     = round(quantile(predicted, 0.25, na.rm = TRUE), 3),
+    Median = round(median(predicted, na.rm = TRUE), 3),
+    Q3     = round(quantile(predicted, 0.75, na.rm = TRUE), 3),
+    max    = round(max(predicted, na.rm = TRUE), 3),
+    N      = n(),
+    .groups = "drop"
+  )
+
+# Print overall statistics
+print(overall_stats)
+# Print grouped statistics
+print(grouped_stats)
+# Save statistics to CSV files
+write.csv(overall_stats, "overall_nutrient_statistics_M0.txt", row.names = FALSE)
+write.csv(grouped_stats, "grouped_nutrient_statistics_M0.txt", row.names = FALSE)
+
+
+## plot observed vs predicted values for each nutrient, (data = pred_df_all)
+ggplot(pred_df_all_M0, aes(x = observed, y = predicted, color = tage_PS, shape = sex_PS)) +
+  geom_point(alpha = 0.6, size = 2) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "black") +  # 1:1 reference
+  facet_wrap(~ nutrient, scales = "free") +
+  scale_color_brewer(palette = "Set2") +
+  labs(
+    title = "Observed vs. Predicted Nutrient Intake for Crossed Random Effect Model",
+    subtitle = "Colored by Age Group, Shaped by Sex",
+    x = "Observed Intake (scale/day)",
+    y = "Predicted Intake (scale/day)",
+    color = "Age Group",
+    shape = "Sex"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, size = 14)
+  )
+
+
+## save the plot
+ggsave("observed_vs_predicted_M0.png", width = 12, height = 8, dpi = 300)
+
+## Random-effect model 
+predicted_model_1 <- lapply(seq_along(nutrients), function(i) {
+  nutrient <- nutrients[i]
+  model <- models_1[[i]]
+  lambda <- boxcox_lambdas[[nutrient]]$lambda
+  shift  <- boxcox_lambdas[[nutrient]]$shift
+
+  Statistcs_predicted_density_by_group(
+    nutrient = nutrient,
+    model = model,
+    data = conso_compo_alim_decode_nutrients_day_boxcox,
+    lambda = lambda,
+    shift = shift
+  )
+})
+
+# calculate statistics and quantiles for each nutrient for all and across age and sex groups
+names(predicted_model_1) <- nutrients
+
+pred_df_all_M1 <- dplyr::bind_rows(predicted_model_1, .id = "nutrient")
+
+# Calculate overall statistics and quantiles for each nutrient
+overall_stats <- pred_df_all_M1 %>%
+  group_by(nutrient) %>%
+  summarise(
+    Mean   = round(mean(predicted, na.rm = TRUE), 3),
+    SD     = round(sd(predicted, na.rm = TRUE), 3),
+    min    = round(min(predicted, na.rm = TRUE), 3),
+    Q1     = round(quantile(predicted, 0.25, na.rm = TRUE), 3),
+    Median = round(median(predicted, na.rm = TRUE), 3),
+    Q3     = round(quantile(predicted, 0.75, na.rm = TRUE), 3),
+    max    = round(max(predicted, na.rm = TRUE), 3),
+    N      = n()
+  )
+
+
+# Grouped summarises (age * sex)
+grouped_stats <- pred_df_all_M1 %>%
+  group_by(nutrient, tage_PS, sex_PS) %>%
+  summarise(
+    Mean   = round(mean(predicted, na.rm = TRUE), 3),
+    SD     = round(sd(predicted, na.rm = TRUE), 3),
+    min    = round(min(predicted, na.rm = TRUE), 3),
+    Q1     = round(quantile(predicted, 0.25, na.rm = TRUE), 3),
+    Median = round(median(predicted, na.rm = TRUE), 3),
+    Q3     = round(quantile(predicted, 0.75, na.rm = TRUE), 3),
+    max    = round(max(predicted, na.rm = TRUE), 3),
+    N      = n(),
+    .groups = "drop"
+  )
+
+# Print overall statistics
+print(overall_stats)
+# Print grouped statistics
+print(grouped_stats)
+# Save statistics to CSV files
+write.csv(overall_stats, "overall_nutrient_statistics_M1.txt", row.names = FALSE)
+write.csv(grouped_stats, "grouped_nutrient_statistics_M1.txt", row.names = FALSE)
+
+
+## plot observed vs predicted values for each nutrient, (data = pred_df_all)
+ggplot(pred_df_all_M1, aes(x = observed, y = predicted, color = tage_PS, shape = sex_PS)) +
+  geom_point(alpha = 0.6, size = 2) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "black") +  # 1:1 reference
+  facet_wrap(~ nutrient, scales = "free") +
+  scale_color_brewer(palette = "Set2") +
+  labs(
+    title = "Observed vs. Predicted Nutrient Intake for Random Effect Model",
+    subtitle = "Colored by Age Group, Shaped by Sex",
+    x = "Observed Intake (scale/day)",
+    y = "Predicted Intake (scale/day)",
+    color = "Age Group",
+    shape = "Sex"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, size = 14)
+  )
+
+
+## save the plot
+ggsave("observed_vs_predicted_M1.png", width = 12, height = 8, dpi = 300)
+
+## Temporal Variational Model
+predicted_model_2 <- lapply(seq_along(nutrients), function(i) {
+  nutrient <- nutrients[i]
+  model <- models_2[[i]]
+  lambda <- boxcox_lambdas[[nutrient]]$lambda
+  shift  <- boxcox_lambdas[[nutrient]]$shift
+
+  Statistcs_predicted_density_by_group(
+    nutrient = nutrient,
+    model = model,
+    data = conso_compo_alim_decode_nutrients_day_boxcox,
+    lambda = lambda,
+    shift = shift
+  )
+})
+
+# calculate statistics and quantiles for each nutrient for all and across age and sex groups
+names(predicted_model_2) <- nutrients
+
+pred_df_all_M2 <- dplyr::bind_rows(predicted_model_2, .id = "nutrient")
+
+# Calculate overall statistics and quantiles for each nutrient
+overall_stats <- pred_df_all_M2 %>%
+  group_by(nutrient) %>%
+  summarise(
+    Mean   = round(mean(predicted, na.rm = TRUE), 3),
+    SD     = round(sd(predicted, na.rm = TRUE), 3),
+    min    = round(min(predicted, na.rm = TRUE), 3),
+    Q1     = round(quantile(predicted, 0.25, na.rm = TRUE), 3),
+    Median = round(median(predicted, na.rm = TRUE), 3),
+    Q3     = round(quantile(predicted, 0.75, na.rm = TRUE), 3),
+    max    = round(max(predicted, na.rm = TRUE), 3),
+    N      = n()
+  )
+
+
+# Grouped summarises (age * sex)
+grouped_stats <- pred_df_all_M2 %>%
+  group_by(nutrient, tage_PS, sex_PS) %>%
+  summarise(
+    Mean   = round(mean(predicted, na.rm = TRUE), 3),
+    SD     = round(sd(predicted, na.rm = TRUE), 3),
+    min    = round(min(predicted, na.rm = TRUE), 3),
+    Q1     = round(quantile(predicted, 0.25, na.rm = TRUE), 3),
+    Median = round(median(predicted, na.rm = TRUE), 3),
+    Q3     = round(quantile(predicted, 0.75, na.rm = TRUE), 3),
+    max    = round(max(predicted, na.rm = TRUE), 3),
+    N      = n(),
+    .groups = "drop"
+  )
+
+# Print overall statistics
+print(overall_stats)
+# Print grouped statistics
+print(grouped_stats)
+# Save statistics to CSV files
+write.csv(overall_stats, "overall_nutrient_statistics_M2.txt", row.names = FALSE)
+write.csv(grouped_stats, "grouped_nutrient_statistics_M2.txt", row.names = FALSE)
+
+
+## plot observed vs predicted values for each nutrient, (data = pred_df_all)
+ggplot(pred_df_all_M2, aes(x = observed, y = predicted, color = tage_PS, shape = sex_PS)) +
+  geom_point(alpha = 0.6, size = 2) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "black") +  # 1:1 reference
+  facet_wrap(~ nutrient, scales = "free") +
+  scale_color_brewer(palette = "Set2") +
+  labs(
+    title = "Observed vs. Predicted Nutrient Intake for Temporal Variational Model",
+    subtitle = "Colored by Age Group, Shaped by Sex",
+    x = "Observed Intake (scale/day)",
+    y = "Predicted Intake (scale/day)",
+    color = "Age Group",
+    shape = "Sex"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, size = 14)
+  )
+
+
+## save the plot
+ggsave("observed_vs_predicted_M2.png", width = 12, height = 8, dpi = 300)
+
+
+## Traditional Regression Model
+predicted_model_3 <- lapply(seq_along(nutrients), function(i) {
+  nutrient <- nutrients[i]
+  model <- models_3[[i]]
+  lambda <- boxcox_lambdas[[nutrient]]$lambda
+  shift  <- boxcox_lambdas[[nutrient]]$shift
+
+  Statistcs_predicted_density_by_group(
+    nutrient = nutrient,
+    model = model,
+    data = conso_compo_alim_decode_nutrients_day_boxcox,
+    lambda = lambda,
+    shift = shift
+  )
+})
+
+# calculate statistics and quantiles for each nutrient for all and across age and sex groups
+names(predicted_model_3) <- nutrients
+
+pred_df_all_M3 <- dplyr::bind_rows(predicted_model_3, .id = "nutrient")
+
+# Calculate overall statistics and quantiles for each nutrient
+overall_stats <- pred_df_all_M3 %>%
+  group_by(nutrient) %>%
+  summarise(
+    Mean   = round(mean(predicted, na.rm = TRUE), 3),
+    SD     = round(sd(predicted, na.rm = TRUE), 3),
+    min    = round(min(predicted, na.rm = TRUE), 3),
+    Q1     = round(quantile(predicted, 0.25, na.rm = TRUE), 3),
+    Median = round(median(predicted, na.rm = TRUE), 3),
+    Q3     = round(quantile(predicted, 0.75, na.rm = TRUE), 3),
+    max    = round(max(predicted, na.rm = TRUE), 3),
+    N      = n()
+  )
+
+
+# Grouped summarises (age * sex)
+grouped_stats <- pred_df_all_M3 %>%
+  group_by(nutrient, tage_PS, sex_PS) %>%
+  summarise(
+    Mean   = round(mean(predicted, na.rm = TRUE), 3),
+    SD     = round(sd(predicted, na.rm = TRUE), 3),
+    min    = round(min(predicted, na.rm = TRUE), 3),
+    Q1     = round(quantile(predicted, 0.25, na.rm = TRUE), 3),
+    Median = round(median(predicted, na.rm = TRUE), 3),
+    Q3     = round(quantile(predicted, 0.75, na.rm = TRUE), 3),
+    max    = round(max(predicted, na.rm = TRUE), 3),
+    N      = n(),
+    .groups = "drop"
+  )
+
+# Print overall statistics
+print(overall_stats)
+# Print grouped statistics
+print(grouped_stats)
+# Save statistics to CSV files
+write.csv(overall_stats, "overall_nutrient_statistics_M3.txt", row.names = FALSE)
+write.csv(grouped_stats, "grouped_nutrient_statistics_M3.txt", row.names = FALSE)
+
+
+## plot observed vs predicted values for each nutrient, (data = pred_df_all)
+ggplot(pred_df_all_M3, aes(x = observed, y = predicted, color = tage_PS, shape = sex_PS)) +
+  geom_point(alpha = 0.6, size = 2) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "black") +  # 1:1 reference
+  facet_wrap(~ nutrient, scales = "free") +
+  scale_color_brewer(palette = "Set2") +
+  labs(
+    title = "Observed vs. Predicted Nutrient Intake for Traditional Regression Model",
+    subtitle = "Colored by Age Group, Shaped by Sex",
+    x = "Observed Intake (scale/day)",
+    y = "Predicted Intake (scale/day)",
+    color = "Age Group",
+    shape = "Sex"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, size = 14)
+  )
+
+
+## save the plot
+ggsave("observed_vs_predicted_M3.png", width = 12, height = 8, dpi = 300)
+
+
+
+
+
+```
+
+## Prevalences of Inadequate Protein Intakes
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=4}
+# Prevalences of Inadequate Protein Intakes
+library(ggplot2)
+library(dplyr)
+# Define the nutrient 
+nutrient <- "proteines"
+# define the threshold for inadequate intake across age and sex groups
+# --------------------------
+# Step 1: Define threshold values (per kg body weight)
+# --------------------------
+x_Femme <- c(
+  "0-11 months" = 0.72,
+  "1-3 years" = 0.74,
+  "4-6 years" = 0.7,
+  "7-10 years" = 0.7,
+  "11-14 years" = 0.7,
+  "15-17 years" = 0.65,
+  "18-44 years" = 0.66,
+  "45-64 years" = 0.66,
+  "65-79 years" = 0.8
+)
+x_Homme <- c(
+  "0-11 months" = 0.72,
+  "1-3 years" = 0.74,
+  "4-6 years" = 0.7,
+  "7-10 years" = 0.7,
+  "11-14 years" = 0.7,
+  "15-17 years" = 0.68,
+  "18-44 years" = 0.66,
+  "45-64 years" = 0.66,
+  "65-79 years" = 0.8
+)
+
+# --------------------------
+# Step 2: Merge weights and calculate individual thresholds
+# --------------------------
+conso_compo_alim_decode_nutrients_day_P <- conso_compo_alim_decode_nutrients_day %>%
+  left_join(description_indiv_decode[, c("NOIND", "poids_m")], by = "NOIND") %>%
+  mutate(
+    tage_PS = as.character(tage_PS),
+    sex_PS = as.character(sex_PS),
+    requirement_per_kg = case_when(
+      sex_PS == "Female" ~ x_Femme[tage_PS],
+      sex_PS == "Male" ~ x_Homme[tage_PS],
+      TRUE ~ NA_real_
+    ),
+    protein_threshold_g = requirement_per_kg * poids_m
+  ) %>%
+  na.omit()
+
+# --------------------------
+# Step 3: Collapse predicted intake from M0 to one row per person
+# --------------------------
+pred_df_M0_usual <- pred_df_all_M0 %>%
+  group_by(nutrient, NOIND, tage_PS, sex_PS) %>%
+  summarise(
+    observed_mean = mean(observed, na.rm = TRUE),
+    predicted = first(predicted),
+    .groups = "drop"
+  ) %>%
+  filter(nutrient == "Protein") %>%
+  mutate(model = "M0")
+
+# --------------------------
+# Step 4: Collapse observed intake per person
+# --------------------------
+conso_compo_alim_decode_nutrients_day_PP <- conso_compo_alim_decode_nutrients_day_P %>%
+  group_by(NOIND, tage_PS, sex_PS) %>%
+  summarise(
+    proteines = mean(Protein, na.rm = TRUE),
+    protein_threshold_g = first(protein_threshold_g),
+    .groups = "drop"
+  )
+
+# --------------------------
+# Step 5: Merge prediction + threshold and flag inadequacy
+# --------------------------
+protein_status_M0 <- conso_compo_alim_decode_nutrients_day_PP %>%
+  left_join(pred_df_M0_usual %>% dplyr::select(NOIND, predicted), by = "NOIND") %>%
+  mutate(inadequate = predicted < protein_threshold_g)
+
+# --------------------------
+# Step 6: Prepare plot data
+# --------------------------
+protein_plot_data <- conso_compo_alim_decode_nutrients_day_PP %>%
+  dplyr::select(NOIND, protein_threshold_g) %>%
+  left_join(
+    pred_df_M0_usual %>% dplyr::select(NOIND, predicted, observed_mean),
+    by = "NOIND"
+  ) %>%
+  mutate(
+    inadequate = predicted < protein_threshold_g,
+    status = ifelse(inadequate, "Inadequate", "Adequate")
+  )
+
+# --------------------------
+# Step 7: Calculate overall prevalence
+# --------------------------
+inadequacy_rate <- mean(protein_plot_data$inadequate, na.rm = TRUE) * 100
+
+# --------------------------
+# Step 8: Prepare data for density plot
+# --------------------------
+combined_df <- bind_rows(
+  pred_df_M0_usual %>%
+    filter(nutrient == "Protein") %>%
+    dplyr::select(value = predicted) %>%
+    mutate(type = "predicted"),
+  conso_compo_alim_decode_nutrients_day_PP %>%
+    dplyr::select(value = protein_threshold_g) %>%
+    mutate(type = "threshold")
+)
+
+# --------------------------
+# Step 9: Plot the density curves
+# --------------------------
+plot <- ggplot(combined_df, aes(x = value, fill = type)) +
+  geom_density(alpha = 0.4, adjust = 1.2) + 
+  geom_vline(aes(xintercept = median(protein_plot_data$protein_threshold_g, na.rm = TRUE)), 
+             color = "blue", linetype = "dashed", linewidth = 1) +
+  scale_fill_manual(
+    values = c("predicted" = "#1b9e77", "threshold" = "#d95f02"),
+    labels = c("Predicted Intake", "Individual Threshold")
+  ) +
+  labs(
+    title = "Distribution of Usual Protein Intake (Traditional Regression Model) vs. Requirement Thresholds",
+    x = "Grams of Protein (g/day)",
+    y = "Density",
+    fill = ""
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  annotate("text", x = 11, y = 0.02,
+           label = paste0("Inadequacy: ", round(inadequacy_rate, 3), "%"))
+
+print(plot)
+
+# --------------------------
+# Step 10: Save the plot
+# --------------------------
+ggsave("protein_inadequacy_M3.png", plot = plot, width = 12, height = 8, dpi = 300)
+
+
+# Calculate density of predicted values only
+predicted_vals <- combined_df %>%
+  filter(type == "predicted") %>%
+  pull(value)
+
+dens <- density(predicted_vals, adjust = 1.2)
+
+# Create a data frame from the density
+dens_df <- data.frame(x = dens$x, y = dens$y)
+
+# Threshold: median of individual thresholds
+threshold_val <- median(protein_plot_data$protein_threshold_g, na.rm = TRUE)
+
+# Separate density into inadequate and adequate parts
+dens_df <- dens_df %>%
+  mutate(shade = ifelse(x < threshold_val, "Inadequate", "Adequate"))
+
+# Plot
+ggplot() +
+  geom_area(data = dens_df, aes(x = x, y = y, fill = shade), alpha = 0.4) +
+  geom_line(data = dens_df, aes(x = x, y = y), color = "#1b9e77", size = 1) +
+  geom_density(data = filter(combined_df, type == "threshold"),
+               aes(x = value), fill = "#d95f02", alpha = 0.4, adjust = 1.2) +
+  geom_vline(xintercept = threshold_val, color = "blue", linetype = "dashed", linewidth = 1) +
+  scale_fill_manual(values = c("Inadequate" = "red", "Adequate" = "gray80")) +
+  labs(
+    title = "Distribution of Protein Intake vs. Requirement Thresholds",
+    subtitle = "Red area = predicted intake < median threshold",
+    x = "Grams of Protein (g/day)",
+    y = "Density",
+    fill = "Predicted Intake"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "top") +
+  annotate("text", x = 50, y = 0.02,
+           label = paste0("Inadequacy: ", round(inadequacy_rate, 1), "%"))
+
+
+
+
+protein_diff_df <- protein_plot_data %>%
+  mutate(
+    diff = predicted - protein_threshold_g,
+    status = ifelse(diff < 0, "Inadequate", "Adequate")
+  )
+
+inadequate_pct <- mean(protein_diff_df$diff < 0, na.rm = TRUE) * 100
+
+
+# Plot the difference between predicted intake and threshold
+ggplot(protein_diff_df, aes(x = diff, fill = status)) +
+  geom_density(alpha = 0.5, adjust = 1.2) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "blue", linewidth = 1) +
+  scale_fill_manual(values = c("Inadequate" = "red", "Adequate" = "green")) +
+  labs(
+    title = "Difference Between Predicted Protein Intake and Requirement",
+    subtitle = "Red = Inadequate (Intake < Requirement)",
+    x = "Intake - Requirement (g/day)",
+    y = "Density",
+    fill = "Status"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "top") + 
+  annotate("text", x = -20, y = 0.02, 
+           label = paste0("Inadequate: ", round(inadequate_pct, 1), "%"))
+
+
+
+
+
+```
+
+
+
+## Inadequacy prevelance box-plot
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=4}
+# Inadequacy prevalence box-plot
+## lets create a graph containing age groups in x-axis and the prevalence of inadequate protein intake in y-axis 
+library(ggplot2)
+library(dplyr)
+
+# let's calculate the inadequacy rate for each age group
+# Calculate prevalence of inadequate intake
+
+correct_order <- c(
+  "0-11 months", "1-3 years", "4-6 years", "7-10 years",
+  "11-14 years", "15-17 years",
+  "18-44 years", "45-64 years", "65-79 years"
+)
+
+
+prevalence_by_age_sex <- protein_status_M4 %>%
+  group_by(tage_PS, sex_PS) %>%
+  summarise(prevalence = mean(inadequate, na.rm = TRUE) * 100, .groups = "drop")
+
+prevalence_by_age_sex$tage_PS <- factor(prevalence_by_age_sex$tage_PS, levels = correct_order, ordered = TRUE)
+
+
+
+# Plot prevalence as a bar chart
+ggplot(prevalence_by_age_sex, aes(x = tage_PS, y = prevalence, fill = sex_PS)) +
+  geom_col(position = "dodge", alpha = 0.8) +
+  geom_text(aes(label = paste0(round(prevalence, 1), "%")), 
+            position = position_dodge(width = 0.9), vjust = -0.5, size = 3.2) +
+  scale_fill_brewer(palette = "Set1") +
+  labs(
+    title = "Prevalence of Inadequate Protein Intake by Age and Sex",
+    x = "Age Group",
+    y = "Prevalence (%)",
+    fill = "Sex"
+  ) +
+  ylim(0, 100) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+
+# Plot prevalence with points and lines
+ggplot(prevalence_by_age_sex, aes(x = tage_PS, y = prevalence, color = sex_PS)) +
+  geom_point(position = position_jitter(width = 0.2), size = 3, alpha = 0.7) +
+  scale_color_brewer(palette = "Set1") +
+  labs(
+    title = "Inadequate Protein Intake Prevalence by Age and Sex",
+    x = "Age Group",
+    y = "Prevalence of Inadequate Intake (%)",
+    color = "Sex"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, size = 14)
+  )
+
+
+
+# Plot prevalence with lines connecting points
+ggplot(prevalence_by_age_sex, aes(x = tage_PS, y = prevalence, group = sex_PS, color = sex_PS)) +
+  geom_point(size = 3, alpha = 0.9) +
+  geom_line(linewidth = 1.2) +  # straight lines between points
+  # Optional: smooth curve instead of line
+  # geom_smooth(se = FALSE, method = "loess", span = 1, linewidth = 1.2) +
+  scale_color_manual(values = c("Femme" = "red", "Homme" = "blue"), labels = c("Female", "Male")) +
+  labs(
+    title = "Sex-Specific Prevalence of Inadequate Protein Intake",
+    x = "Age Group",
+    y = "Prevalence (%)",
+    color = "Sex"
+  ) +
+  theme_minimal() +
+  theme( 
+    legend.position = "top",
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, size = 14)
+  )
+
+
+
+model_list <- list(
+  M0 = protein_status_M0,
+  M1 = protein_status_M1,
+  M2 = protein_status_M2,
+  M3 = protein_status_M3,
+  M4 = protein_status_M4
+)
+
+model_names <- c("Crossed Random Effect", "Random Effect", "Temporal Variational", "Traditional Regression", "Nested Random Effect")
+
+names(model_list) <- model_names
+
+prevalence_all_models <- purrr::imap_dfr(model_list, function(data, model_name) {
+  data %>%
+    group_by(tage_PS, sex_PS) %>%
+    summarise(prevalence = mean(inadequate, na.rm = TRUE) * 100, .groups = "drop") %>%
+    mutate(model = model_name)
+})
+
+
+prevalence_all_models$tage_PS <- factor(prevalence_all_models$tage_PS, levels = correct_order, ordered = TRUE)
+
+
+ggplot(prevalence_all_models, aes(x = tage_PS, y = prevalence, 
+                                  color = model, shape = sex_PS, group = interaction(sex_PS, model))) +
+  geom_point(size = 3) +
+  geom_line(linewidth = 1) +
+  scale_color_brewer(palette = "Set1") +  # Different color per model
+  scale_shape_manual(values = c("Male" = 8, "Female" = 17)) +  # * and triangle
+  labs(
+    title = "Prevalence of Inadequate Protein Intake by Model, Sex, and Age",
+    x = "Age Group",
+    y = "Prevalence (%)",
+    color = "Model",
+    shape = "Sex"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5)
+  )
+
+## save the plot
+ggsave("protein_inadequacy.png", width = 12, height = 8, dpi = 300)
+
+
+
+
+
+
+```
+
+## Prevalences of Inadequate Vitamin B12 Intakes
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=4}
+# Prevalences of Inadequate Protein Intakes
+library(ggplot2)
+library(dplyr)
+# Define the nutrient 
+nutrient <- "vitamine_b12"
+# define the threshold for inadequate intake across age and sex groups
+x_Femme <- c(
+  "0-11 months" = 0.1,
+  "1-3 years" = 1.5,
+  "4-6 years" = 1.5,
+  "7-10 years" = 1.5,
+  "11-14 years" = 2.5,
+  "15-17 years" = 2.5,
+  "18-44 years" = 4,
+  "45-64 years" = 4,
+  "65-79 years" = 4
+)
+x_Homme <- c(
+  "0-11 months" = 0.1,
+  "1-3 years" = 1.5,
+  "4-6 years" = 1.5,
+  "7-10 years" = 1.5,
+  "11-14 years" = 2.5,
+  "15-17 years" = 2.5,
+  "18-44 years" = 4,
+  "45-64 years" = 4,
+  "65-79 years" = 4
+)
+
+# add weight to the data 
+## Brings age, sex, BMI for the NOIND from table description_indiv_decode
+# --------------------------
+# Step 2: Merge weights and calculate individual thresholds
+# --------------------------
+conso_compo_alim_decode_nutrients_day_P <- conso_compo_alim_decode_nutrients_day %>%
+  mutate(
+    tage_PS = as.character(tage_PS),
+    sex_PS = as.character(sex_PS),
+    requirement_per_kg = case_when(
+      sex_PS == "Female" ~ x_Femme[tage_PS],
+      sex_PS == "Male" ~ x_Homme[tage_PS],
+      TRUE ~ NA_real_
+    ),
+    vitamine_b12_threshold_g = requirement_per_kg
+  ) %>%
+  na.omit()
+
+# --------------------------
+# Step 3: Collapse predicted intake from M0 to one row per person
+# --------------------------
+pred_df_M0_usual <- pred_df_all_M0 %>%
+  group_by(nutrient, NOIND, tage_PS, sex_PS) %>%
+  summarise(
+    observed_mean = mean(observed, na.rm = TRUE),
+    predicted = first(predicted),
+    .groups = "drop"
+  ) %>%
+  filter(nutrient == "Vitamine_B12") %>%
+  mutate(model = "M0")
+
+# --------------------------
+# Step 4: Collapse observed intake per person
+# --------------------------
+conso_compo_alim_decode_nutrients_day_PP <- conso_compo_alim_decode_nutrients_day_P %>%
+  group_by(NOIND, tage_PS, sex_PS) %>%
+  summarise(
+    vitamine_b12 = mean(Vitamine_B12, na.rm = TRUE),
+    vitamine_b12_threshold_g = first(vitamine_b12_threshold_g),
+    .groups = "drop"
+  )
+
+# --------------------------
+# Step 5: Merge prediction + threshold and flag inadequacy
+# --------------------------
+vitaminb12_status_M0 <- conso_compo_alim_decode_nutrients_day_PP %>%
+  left_join(pred_df_M0_usual %>% dplyr::select(NOIND, predicted), by = "NOIND") %>%
+  mutate(inadequate = predicted < vitamine_b12_threshold_g)
+
+# --------------------------
+# Step 6: Prepare plot data
+# --------------------------
+vitamine_b12_plot_data <- conso_compo_alim_decode_nutrients_day_PP %>%
+  dplyr::select(NOIND, vitamine_b12_threshold_g) %>%
+  left_join(
+    pred_df_M0_usual %>% dplyr::select(NOIND, predicted, observed_mean),
+    by = "NOIND"
+  ) %>%
+  mutate(
+    inadequate = predicted < vitamine_b12_threshold_g,
+    status = ifelse(inadequate, "Inadequate", "Adequate")
+  )
+
+# --------------------------
+# Step 7: Calculate overall prevalence
+# --------------------------
+inadequacy_rate <- mean(vitamine_b12_plot_data$inadequate, na.rm = TRUE) * 100
+
+# --------------------------
+# Step 8: Prepare data for density plot
+# --------------------------
+combined_df <- bind_rows(
+  pred_df_M0_usual %>%
+    filter(nutrient == "Vitamine_B12") %>%
+    dplyr::select(value = predicted) %>%
+    mutate(type = "predicted"),
+  conso_compo_alim_decode_nutrients_day_PP %>%
+    dplyr::select(value = vitamine_b12_threshold_g) %>%
+    mutate(type = "threshold")
+)
+
+# --------------------------
+# Step 9: Plot the density curves
+# --------------------------
+plot <- ggplot(combined_df, aes(x = value, fill = type)) +
+  geom_density(alpha = 0.4, adjust = 1.2) + 
+ # geom_vline(aes(xintercept = median(protein_plot_data$protein_threshold_g, na.rm = TRUE)), 
+          #   color = "blue", linetype = "dashed", linewidth = 1) +
+  scale_fill_manual(
+    values = c("predicted" = "#1b9e77", "threshold" = "#d95f02"),
+    labels = c("Predicted Intake", "Individual Threshold")
+  ) +
+  labs(
+    title = "Distribution of Usual Vitamine B12 Intake (Temporal Variational Model) vs. Requirement Thresholds",
+    x = "µG of Vitamine b12 (µg/day)",
+    y = "Density",
+    fill = ""
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  annotate("text", x = 1.5, y = 0.6,
+           label = paste0("Inadequacy: ", round(inadequacy_rate, 3), "%"))
+
+print(plot)
+
+# --------------------------
+# Step 10: Save the plot
+# --------------------------
+ggsave("vitaminb12_inadequacy_M0.png", width = 12, height = 8, dpi = 300)
+
+
+
+```
+
+## Inadequacy prevelance box-plot for Vitamin B12
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=4}
+model_list <- list(
+  M0 = vitaminb12_status_M0,
+  M1 = vitaminb12_status_M1,
+  M2 = vitaminb12_status_M2,
+  M3 = vitaminb12_status_M3,
+  M4 = vitaminb12_status_M4
+)
+
+model_names <- c("Crossed Random Effect", "Random Effect", "Temporal Variational", "Traditional Regression", "Nested Random Effect")
+
+names(model_list) <- model_names
+
+prevalence_all_models <- purrr::imap_dfr(model_list, function(data, model_name) {
+  data %>%
+    group_by(tage_PS, sex_PS) %>%
+    summarise(prevalence = mean(inadequate, na.rm = TRUE) * 100, .groups = "drop") %>%
+    mutate(model = model_name)
+})
+
+
+prevalence_all_models$tage_PS <- factor(prevalence_all_models$tage_PS, levels = correct_order, ordered = TRUE)
+
+
+ggplot(prevalence_all_models, aes(x = tage_PS, y = prevalence, 
+                                  color = model, shape = sex_PS, group = interaction(sex_PS, model))) +
+  geom_point(size = 3) +
+  geom_line(linewidth = 1) +
+  scale_color_brewer(palette = "Set1") +  # Different color per model
+  scale_shape_manual(values = c("Male" = 8, "Female" = 17)) +  # * and triangle
+  labs(
+    title = "Prevalence of Inadequate Vitamin B12 Intake by Model, Sex, and Age",
+    x = "Age Group",
+    y = "Prevalence (%)",
+    color = "Model",
+    shape = "Sex"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5)
+  )
+
+## save the plot
+ggsave("vitaminb12_inadequacy.png", width = 12, height = 8, dpi = 300)
+
+
+####
+prevalence_by_age_sex <- vitaminb12_status_M4 %>%
+  group_by(tage_PS, sex_PS) %>%
+  summarise(prevalence = mean(inadequate, na.rm = TRUE) * 100, .groups = "drop")
+
+prevalence_by_age_sex$tage_PS <- factor(prevalence_by_age_sex$tage_PS, levels = correct_order, ordered = TRUE)
+
+# Plot prevalence with lines connecting points
+ggplot(prevalence_by_age_sex, aes(x = tage_PS, y = prevalence, group = sex_PS, color = sex_PS)) +
+  geom_point(size = 3, alpha = 0.9) +
+  geom_line(linewidth = 1.2) +  # straight lines between points
+  # Optional: smooth curve instead of line
+  # geom_smooth(se = FALSE, method = "loess", span = 1, linewidth = 1.2) +
+  scale_color_manual(values = c("Femme" = "red", "Homme" = "blue"), labels = c("Female", "Male")) +
+  labs(
+    title = "Sex-Specific Prevalence of Inadequate Vitamin B12 Intake",
+    x = "Age Group",
+    y = "Prevalence (%)",
+    color = "Sex"
+  ) +
+  theme_minimal() +
+  theme( 
+    legend.position = "top",
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, size = 14)
+  )
+
+
+
+```
+# Iodine
+## Prevalences of Inadequate Iodine Intakes
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=4}
+# Prevalences of Inadequate Protein Intakes
+library(ggplot2)
+library(dplyr)
+# Define the nutrient 
+nutrient <- "iode"
+# define the threshold for inadequate intake across age and sex groups
+x_Femme <- c(
+  "0-11 months" = 70,
+  "1-3 years" = 90,
+  "4-6 years" = 90,
+  "7-10 years" = 90,
+  "11-14 years" = 120,
+  "15-17 years" = 130,
+  "18-44 years" = 150,
+  "45-64 years" = 150,
+  "65-79 years" = 150
+)
+x_Homme <- c(
+  "0-11 months" = 70,
+  "1-3 years" = 90,
+  "4-6 years" = 90,
+  "7-10 years" = 90,
+  "11-14 years" = 120,
+  "15-17 years" = 130,
+  "18-44 years" = 150,
+  "45-64 years" = 150,
+  "65-79 years" = 150
+)
+
+# add weight to the data 
+## Brings age, sex, BMI for the NOIND from table description_indiv_decode
+# --------------------------
+# Step 2: Merge weights and calculate individual thresholds
+# --------------------------
+conso_compo_alim_decode_nutrients_day_P <- conso_compo_alim_decode_nutrients_day %>%
+  mutate(
+    tage_PS = as.character(tage_PS),
+    sex_PS = as.character(sex_PS),
+    requirement_per_kg = case_when(
+      sex_PS == "Female" ~ x_Femme[tage_PS],
+      sex_PS == "Male" ~ x_Homme[tage_PS],
+      TRUE ~ NA_real_
+    ),
+    iode_threshold_g = requirement_per_kg
+  ) %>%
+  na.omit()
+
+# --------------------------
+# Step 3: Collapse predicted intake from M0 to one row per person
+# --------------------------
+pred_df_M0_usual <- pred_df_all_M0 %>%
+  group_by(nutrient, NOIND, tage_PS, sex_PS) %>%
+  summarise(
+    observed_mean = mean(observed, na.rm = TRUE),
+    predicted = first(predicted),
+    .groups = "drop"
+  ) %>%
+  filter(nutrient == "Iodine") %>%
+  mutate(model = "M0")
+
+# --------------------------
+# Step 4: Collapse observed intake per person
+# --------------------------
+conso_compo_alim_decode_nutrients_day_PP <- conso_compo_alim_decode_nutrients_day_P %>%
+  group_by(NOIND, tage_PS, sex_PS) %>%
+  summarise(
+    iode = mean(Iodine, na.rm = TRUE),
+    iode_threshold_g = first(iode_threshold_g),
+    .groups = "drop"
+  )
+
+# --------------------------
+# Step 5: Merge prediction + threshold and flag inadequacy
+# --------------------------
+iode_status_M0 <- conso_compo_alim_decode_nutrients_day_PP %>%
+  left_join(pred_df_M0_usual %>% dplyr::select(NOIND, predicted), by = "NOIND") %>%
+  mutate(inadequate = predicted < iode_threshold_g)
+
+# --------------------------
+# Step 6: Prepare plot data
+# --------------------------
+iode_plot_data <- conso_compo_alim_decode_nutrients_day_PP %>%
+  dplyr::select(NOIND, iode_threshold_g) %>%
+  left_join(
+    pred_df_M0_usual %>% dplyr::select(NOIND, predicted, observed_mean),
+    by = "NOIND"
+  ) %>%
+  mutate(
+    inadequate = predicted < iode_threshold_g,
+    status = ifelse(inadequate, "Inadequate", "Adequate")
+  )
+
+# --------------------------
+# Step 7: Calculate overall prevalence
+# --------------------------
+inadequacy_rate <- mean(iode_plot_data$inadequate, na.rm = TRUE) * 100
+
+# --------------------------
+# Step 8: Prepare data for density plot
+# --------------------------
+combined_df <- bind_rows(
+  pred_df_M0_usual %>%
+    filter(nutrient == "Iodine") %>%
+    dplyr::select(value = predicted) %>%
+    mutate(type = "predicted"),
+  conso_compo_alim_decode_nutrients_day_PP %>%
+    dplyr::select(value = iode_threshold_g) %>%
+    mutate(type = "threshold")
+)
+
+# --------------------------
+# Step 9: Plot the density curves
+# --------------------------
+plot <- ggplot(combined_df, aes(x = value, fill = type)) +
+  geom_density(alpha = 0.4, adjust = 1.2) + 
+ # geom_vline(aes(xintercept = median(protein_plot_data$protein_threshold_g, na.rm = TRUE)), 
+          #   color = "blue", linetype = "dashed", linewidth = 1) +
+  scale_fill_manual(
+    values = c("predicted" = "#1b9e77", "threshold" = "#d95f02"),
+    labels = c("Predicted Intake", "Individual Threshold")
+  ) +
+  labs(
+    title = "Distribution of Usual Iodine Intake (Nested Model) vs. Requirement Thresholds",
+    x = "µG of Iodine (µg/day)",
+    y = "Density",
+    fill = ""
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  annotate("text", x = 50, y = 0.01,
+           label = paste0("Inadequacy: ", round(inadequacy_rate, 3), "%"))
+
+print(plot)
+
+# --------------------------
+# Step 10: Save the plot
+# --------------------------
+ggsave("iode_inadequacy_M0.png", width = 12, height = 8, dpi = 300)
+
+
+
+```
+
+## Inadequacy prevelance box-plot for Iode
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=4}
+model_list <- list(
+  M0 = iode_status_M0,
+  M1 = iode_status_M1,
+  M2 = iode_status_M2,
+  M3 = iode_status_M3,
+  M4 = iode_status_M4
+)
+
+model_names <- c("Crossed Random Effect", "Random Effect", "Temporal Variational", "Traditional Regression", "Nested Random Effect")
+
+names(model_list) <- model_names
+
+prevalence_all_models <- purrr::imap_dfr(model_list, function(data, model_name) {
+  data %>%
+    group_by(tage_PS, sex_PS) %>%
+    summarise(prevalence = mean(inadequate, na.rm = TRUE) * 100, .groups = "drop") %>%
+    mutate(model = model_name)
+})
+
+
+prevalence_all_models$tage_PS <- factor(prevalence_all_models$tage_PS, levels = correct_order, ordered = TRUE)
+
+
+ggplot(prevalence_all_models, aes(x = tage_PS, y = prevalence, 
+                                  color = model, shape = sex_PS, group = interaction(sex_PS, model))) +
+  geom_point(size = 3) +
+  geom_line(linewidth = 1) +
+  scale_color_brewer(palette = "Set1") +  # Different color per model
+  scale_shape_manual(values = c("Male" = 8, "Female" = 17)) +  # * and triangle
+  labs(
+    title = "Prevalence of Inadequate Iodine Intake by Model, Sex, and Age",
+    x = "Age Group",
+    y = "Prevalence (%)",
+    color = "Model",
+    shape = "Sex"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5)
+  )
+
+
+## save the plot
+ggsave("iode_inadequacy.png", width = 12, height = 8, dpi = 300)
+
+
+####
+prevalence_by_age_sex <- iode_status_M4 %>%
+  group_by(tage_PS, sex_PS) %>%
+  summarise(prevalence = mean(inadequate, na.rm = TRUE) * 100, .groups = "drop")
+
+prevalence_by_age_sex$tage_PS <- factor(prevalence_by_age_sex$tage_PS, levels = correct_order, ordered = TRUE)
+
+# Plot prevalence with lines connecting points
+ggplot(prevalence_by_age_sex, aes(x = tage_PS, y = prevalence, group = sex_PS, color = sex_PS)) +
+  geom_point(size = 3, alpha = 0.9) +
+  geom_line(linewidth = 1.2) +  # straight lines between points
+  # Optional: smooth curve instead of line
+  # geom_smooth(se = FALSE, method = "loess", span = 1, linewidth = 1.2) +
+  scale_color_manual(values = c("Femme" = "red", "Homme" = "blue"), labels = c("Female", "Male")) +
+  labs(
+    title = "Sex-Specific Prevalence of Inadequate Intake",
+    x = "Age Group",
+    y = "Prevalence (%)",
+    color = "Sex"
+  ) +
+  theme_minimal() +
+  theme( 
+    legend.position = "top",
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, size = 14)
+  )
+
+
+
+```
+
+
+
+
+# Magnesium 
+## Prevalences of Inadequate Magnesium Intakes
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=4}
+# Prevalences of Inadequate Protein Intakes
+library(ggplot2)
+library(dplyr)
+# Define the nutrient 
+nutrient <- "magnesium"
+# define the threshold for inadequate intake across age and sex groups
+x_Femme <- c(
+  "0-11 months" = 80,
+  "1-3 years" = 180,
+  "4-6 years" = 210,
+  "7-10 years" = 240,
+  "11-14 years" = 265,
+  "15-17 years" = 225,
+  "18-44 years" = 300,
+  "45-64 years" = 300,
+  "65-79 years" = 300
+)
+x_Homme <- c(
+  "0-11 months" = 80,
+  "1-3 years" = 180,
+  "4-6 years" = 210,
+  "7-10 years" = 240,
+  "11-14 years" = 265,
+  "15-17 years" = 295,
+  "18-44 years" = 380,
+  "45-64 years" = 380,
+  "65-79 years" = 300
+)
+
+# add weight to the data 
+## Brings age, sex, BMI for the NOIND from table description_indiv_decode
+# --------------------------
+# Step 2: Merge weights and calculate individual thresholds
+# --------------------------
+conso_compo_alim_decode_nutrients_day_P <- conso_compo_alim_decode_nutrients_day %>%
+  mutate(
+    tage_PS = as.character(tage_PS),
+    sex_PS = as.character(sex_PS),
+    requirement_per_kg = case_when(
+      sex_PS == "Female" ~ x_Femme[tage_PS],
+      sex_PS == "Male" ~ x_Homme[tage_PS],
+      TRUE ~ NA_real_
+    ),
+    magnesium_threshold_g = requirement_per_kg
+  ) %>%
+  na.omit()
+
+# --------------------------
+# Step 3: Collapse predicted intake from M0 to one row per person
+# --------------------------
+pred_df_M0_usual <- pred_df_all_M0 %>%
+  group_by(nutrient, NOIND, tage_PS, sex_PS) %>%
+  summarise(
+    observed_mean = mean(observed, na.rm = TRUE),
+    predicted = first(predicted),
+    .groups = "drop"
+  ) %>%
+  filter(nutrient == "Magnesium") %>%
+  mutate(model = "M0")
+
+# --------------------------
+# Step 4: Collapse observed intake per person
+# --------------------------
+conso_compo_alim_decode_nutrients_day_PP <- conso_compo_alim_decode_nutrients_day_P %>%
+  group_by(NOIND, tage_PS, sex_PS) %>%
+  summarise(
+    magnesium = mean(Magnesium, na.rm = TRUE),
+    magnesium_threshold_g = first(magnesium_threshold_g),
+    .groups = "drop"
+  )
+
+# --------------------------
+# Step 5: Merge prediction + threshold and flag inadequacy
+# --------------------------
+magnesium_status_M0 <- conso_compo_alim_decode_nutrients_day_PP %>%
+  left_join(pred_df_M0_usual %>% dplyr::select(NOIND, predicted), by = "NOIND") %>%
+  mutate(inadequate = predicted < magnesium_threshold_g)
+
+# --------------------------
+# Step 6: Prepare plot data
+# --------------------------
+magnesium_plot_data <- conso_compo_alim_decode_nutrients_day_PP %>%
+  dplyr::select(NOIND, magnesium_threshold_g) %>%
+  left_join(
+    pred_df_M0_usual %>% dplyr::select(NOIND, predicted, observed_mean),
+    by = "NOIND"
+  ) %>%
+  mutate(
+    inadequate = predicted < magnesium_threshold_g,
+    status = ifelse(inadequate, "Inadequate", "Adequate")
+  )
+
+# --------------------------
+# Step 7: Calculate overall prevalence
+# --------------------------
+inadequacy_rate <- mean(magnesium_plot_data$inadequate, na.rm = TRUE) * 100
+
+# --------------------------
+# Step 8: Prepare data for density plot
+# --------------------------
+combined_df <- bind_rows(
+  pred_df_M0_usual %>%
+    filter(nutrient == "Magnesium") %>%
+    dplyr::select(value = predicted) %>%
+    mutate(type = "predicted"),
+  conso_compo_alim_decode_nutrients_day_PP %>%
+    dplyr::select(value = magnesium_threshold_g) %>%
+    mutate(type = "threshold")
+)
+
+# --------------------------
+# Step 9: Plot the density curves
+# --------------------------
+plot <- ggplot(combined_df, aes(x = value, fill = type)) +
+  geom_density(alpha = 0.4, adjust = 1.2) + 
+ # geom_vline(aes(xintercept = median(protein_plot_data$protein_threshold_g, na.rm = TRUE)), 
+          #   color = "blue", linetype = "dashed", linewidth = 1) +
+  scale_fill_manual(
+    values = c("predicted" = "#1b9e77", "threshold" = "#d95f02"),
+    labels = c("Predicted Intake", "Individual Threshold")
+  ) +
+  labs(
+    title = "Distribution of Usual Magnesium Intake (Nested Model) vs. Requirement Thresholds",
+    x = "MG of Magnesium (mg/day)",
+    y = "Density",
+    fill = ""
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  annotate("text", x = 100, y = 0.01,
+           label = paste0("Inadequacy: ", round(inadequacy_rate, 3), "%"))
+
+print(plot)
+## save the plot
+ggsave("magnesium_inadequacy_M0.png", width = 12, height = 8, dpi = 300)
+
+
+
+```
+
+## Inadequacy prevelance box-plot for Magnesium
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=4}
+model_list <- list(
+  M0 = magnesium_status_M0,
+  M1 = magnesium_status_M1,
+  M2 = magnesium_status_M2,
+  M3 = magnesium_status_M3,
+  M4 = magnesium_status_M4
+)
+
+model_names <- c("Crossed Random Effect", "Random Effect", "Temporal Variational", "Traditional Regression", "Nested Random Effect")
+
+names(model_list) <- model_names
+
+prevalence_all_models <- purrr::imap_dfr(model_list, function(data, model_name) {
+  data %>%
+    group_by(tage_PS, sex_PS) %>%
+    summarise(prevalence = mean(inadequate, na.rm = TRUE) * 100, .groups = "drop") %>%
+    mutate(model = model_name)
+})
+
+
+prevalence_all_models$tage_PS <- factor(prevalence_all_models$tage_PS, levels = correct_order, ordered = TRUE)
+
+
+ggplot(prevalence_all_models, aes(x = tage_PS, y = prevalence, 
+                                  color = model, shape = sex_PS, group = interaction(sex_PS, model))) +
+  geom_point(size = 3) +
+  geom_line(linewidth = 1) +
+  scale_color_brewer(palette = "Set1") +  # Different color per model
+  scale_shape_manual(values = c("Male" = 8, "Female" = 17)) +  # * and triangle
+  labs(
+    title = "Prevalence of Inadequate Magnesium Intake by Model, Sex, and Age",
+    x = "Age Group",
+    y = "Prevalence (%)",
+    color = "Model",
+    shape = "Sex"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5)
+  )
+
+
+## save the plot
+ggsave("magnesium_inadequacy.png", width = 12, height = 8, dpi = 300)
+
+
+####
+prevalence_by_age_sex <- magnesium_status_M0 %>%
+  group_by(tage_PS, sex_PS) %>%
+  summarise(prevalence = mean(inadequate, na.rm = TRUE) * 100, .groups = "drop")
+
+prevalence_by_age_sex$tage_PS <- factor(prevalence_by_age_sex$tage_PS, levels = correct_order, ordered = TRUE)
+
+# Plot prevalence with lines connecting points
+ggplot(prevalence_by_age_sex, aes(x = tage_PS, y = prevalence, group = sex_PS, color = sex_PS)) +
+  geom_point(size = 3, alpha = 0.9) +
+  geom_line(linewidth = 1.2) +  # straight lines between points
+  # Optional: smooth curve instead of line
+  # geom_smooth(se = FALSE, method = "loess", span = 1, linewidth = 1.2) +
+  scale_color_manual(values = c("Femme" = "red", "Homme" = "blue"), labels = c("Female", "Male")) +
+  labs(
+    title = "Sex-Specific Prevalence of Inadequate Intake",
+    x = "Age Group",
+    y = "Prevalence (%)",
+    color = "Sex"
+  ) +
+  theme_minimal() +
+  theme( 
+    legend.position = "top",
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, size = 14)
+  )
+
+
+
+
+
+```
+
+# Phosphorus 
+## Prevalences of Inadequate Magnesium Intakes
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=4}
+# Prevalences of Inadequate Protein Intakes
+library(ggplot2)
+library(dplyr)
+# Define the nutrient 
+nutrient <- "phosphore"
+# define the threshold for inadequate intake across age and sex groups
+x_Femme <- c(
+  "0-11 months" = 100,
+  "1-3 years" = 250,
+  "4-6 years" = 440,
+  "7-10 years" = 440,
+  "11-14 years" = 640,
+  "15-17 years" = 640,
+  "18-44 years" = 550,
+  "45-64 years" = 550,
+  "65-79 years" = 550
+)
+x_Homme <- c(
+  "0-11 months" = 100,
+  "1-3 years" = 250,
+  "4-6 years" = 440,
+  "7-10 years" = 440,
+  "11-14 years" = 640,
+  "15-17 years" = 640,
+  "18-44 years" = 550,
+  "45-64 years" = 550,
+  "65-79 years" = 550
+)
+
+# add weight to the data 
+## Brings age, sex, BMI for the NOIND from table description_indiv_decode
+# --------------------------
+# Step 2: Merge weights and calculate individual thresholds
+# --------------------------
+conso_compo_alim_decode_nutrients_day_P <- conso_compo_alim_decode_nutrients_day %>%
+  mutate(
+    tage_PS = as.character(tage_PS),
+    sex_PS = as.character(sex_PS),
+    requirement_per_kg = case_when(
+      sex_PS == "Female" ~ x_Femme[tage_PS],
+      sex_PS == "Male" ~ x_Homme[tage_PS],
+      TRUE ~ NA_real_
+    ),
+    phosphore_threshold_g = requirement_per_kg
+  ) %>%
+  na.omit()
+
+# --------------------------
+# Step 3: Collapse predicted intake from M4 to one row per person
+# --------------------------
+pred_df_M4_usual <- pred_df_all_M4 %>%
+  group_by(nutrient, NOIND, tage_PS, sex_PS) %>%
+  summarise(
+    observed_mean = mean(observed, na.rm = TRUE),
+    predicted = first(predicted),
+    .groups = "drop"
+  ) %>%
+  filter(nutrient == "Phosphorus") %>%
+  mutate(model = "M4")
+
+# --------------------------
+# Step 4: Collapse observed intake per person
+# --------------------------
+conso_compo_alim_decode_nutrients_day_PP <- conso_compo_alim_decode_nutrients_day_P %>%
+  group_by(NOIND, tage_PS, sex_PS) %>%
+  summarise(
+    phosphore = mean(Phosphorus, na.rm = TRUE),
+    phosphore_threshold_g = first(phosphore_threshold_g),
+    .groups = "drop"
+  )
+
+# --------------------------
+# Step 5: Merge prediction + threshold and flag inadequacy
+# --------------------------
+phosphore_status_M4 <- conso_compo_alim_decode_nutrients_day_PP %>%
+  left_join(pred_df_M4_usual %>% dplyr::select(NOIND, predicted), by = "NOIND") %>%
+  mutate(inadequate = predicted < phosphore_threshold_g)
+
+# --------------------------
+# Step 6: Prepare plot data
+# --------------------------
+phosphore_plot_data <- conso_compo_alim_decode_nutrients_day_PP %>%
+  dplyr::select(NOIND, phosphore_threshold_g) %>%
+  left_join(
+    pred_df_M4_usual %>% dplyr::select(NOIND, predicted, observed_mean),
+    by = "NOIND"
+  ) %>%
+  mutate(
+    inadequate = predicted < phosphore_threshold_g,
+    status = ifelse(inadequate, "Inadequate", "Adequate")
+  )
+
+# --------------------------
+# Step 7: Calculate overall prevalence
+# --------------------------
+inadequacy_rate <- mean(phosphore_plot_data$inadequate, na.rm = TRUE) * 100
+
+# --------------------------
+# Step 8: Prepare data for density plot
+# --------------------------
+combined_df <- bind_rows(
+  pred_df_M4_usual %>%
+    filter(nutrient == "Phosphorus") %>%
+    dplyr::select(value = predicted) %>%
+    mutate(type = "predicted"),
+  conso_compo_alim_decode_nutrients_day_PP %>%
+    dplyr::select(value = phosphore_threshold_g) %>%
+    mutate(type = "threshold")
+)
+
+# --------------------------
+# Step 9: Plot the density curves
+# --------------------------
+plot <- ggplot(combined_df, aes(x = value, fill = type)) +
+  geom_density(alpha = 0.4, adjust = 1.2) + 
+ # geom_vline(aes(xintercept = median(protein_plot_data$protein_threshold_g, na.rm = TRUE)), 
+          #   color = "blue", linetype = "dashed", linewidth = 1) +
+  scale_fill_manual(
+    values = c("predicted" = "#1b9e77", "threshold" = "#d95f02"),
+    labels = c("Predicted Intake", "Individual Threshold")
+  ) +
+  labs(
+    title = "Distribution of Usual Phosphorus Intake (Crossed Model) vs. Requirement Thresholds",
+    x = "MG of Phosphorus (mg/day)",
+    y = "Density",
+    fill = ""
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  annotate("text", x = 300, y = 0.006,
+           label = paste0("Inadequacy: ", round(inadequacy_rate, 3), "%"))
+
+print(plot)
+## save the plot
+ggsave("phosphore_inadequacy_M4.png", width = 12, height = 8, dpi = 300)
+
+
+
+```
+
+## Inadequacy prevelance box-plot for Phosphorus
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=4}
+model_list <- list(
+  M0 = phosphore_status_M0,
+  M1 = phosphore_status_M1,
+  M2 = phosphore_status_M2,
+  M3 = phosphore_status_M3,
+  M4 = phosphore_status_M4
+)
+
+model_names <- c("Crossed Random Effect", "Random Effect", "Temporal Variational", "Traditional Regression", "Nested Random Effect")
+
+names(model_list) <- model_names
+
+prevalence_all_models <- purrr::imap_dfr(model_list, function(data, model_name) {
+  data %>%
+    group_by(tage_PS, sex_PS) %>%
+    summarise(prevalence = mean(inadequate, na.rm = TRUE) * 100, .groups = "drop") %>%
+    mutate(model = model_name)
+})
+
+
+prevalence_all_models$tage_PS <- factor(prevalence_all_models$tage_PS, levels = correct_order, ordered = TRUE)
+
+
+ggplot(prevalence_all_models, aes(x = tage_PS, y = prevalence, 
+                                  color = model, shape = sex_PS, group = interaction(sex_PS, model))) +
+  geom_point(size = 3) +
+  geom_line(linewidth = 1) +
+  scale_color_brewer(palette = "Set1") +  # Different color per model
+  scale_shape_manual(values = c("Male" = 8, "Female" = 17)) +  # * and triangle
+  labs(
+    title = "Prevalence of Inadequate phosphorus Intake by Model, Sex, and Age",
+    x = "Age Group",
+    y = "Prevalence (%)",
+    color = "Model",
+    shape = "Sex"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5)
+  )
+
+
+## save the plot
+ggsave("phosphore_inadequacy.png", width = 12, height = 8, dpi = 300)
+
+
+####
+prevalence_by_age_sex <- phosphore_status_M4 %>%
+  group_by(tage_PS, sex_PS) %>%
+  summarise(prevalence = mean(inadequate, na.rm = TRUE) * 100, .groups = "drop")
+
+prevalence_by_age_sex$tage_PS <- factor(prevalence_by_age_sex$tage_PS, levels = correct_order, ordered = TRUE)
+
+# Plot prevalence with lines connecting points
+ggplot(prevalence_by_age_sex, aes(x = tage_PS, y = prevalence, group = sex_PS, color = sex_PS)) +
+  geom_point(size = 3, alpha = 0.9) +
+  geom_line(linewidth = 1.2) +  # straight lines between points
+  # Optional: smooth curve instead of line
+  # geom_smooth(se = FALSE, method = "loess", span = 1, linewidth = 1.2) +
+  scale_color_manual(values = c("Femme" = "red", "Homme" = "blue"), labels = c("Female", "Male")) +
+  labs(
+    title = "Sex-Specific Prevalence of Inadequate Intake",
+    x = "Age Group",
+    y = "Prevalence (%)",
+    color = "Sex"
+  ) +
+  theme_minimal() +
+  theme( 
+    legend.position = "top",
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, size = 14)
+  )
+
+
+
+
+
+```
+# Calcuim
+## Prevalences of Inadequate Calcium Intakes
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=4}
+# Prevalences of Inadequate Protein Intakes
+library(ggplot2)
+library(dplyr)
+# Define the nutrient 
+nutrient <- "calcium"
+# define the threshold for inadequate intake across age and sex groups
+x_Femme <- c(
+  "0-11 months" = 230,
+  "1-3 years" = 390,
+  "4-6 years" = 680,
+  "7-10 years" = 680,
+  "11-14 years" = 960,
+  "15-17 years" = 960,
+  "18-44 years" = 805,
+  "45-64 years" = 805,
+  "65-79 years" = 750
+)
+x_Homme <- c(
+  "0-11 months" = 230,
+  "1-3 years" = 390,
+  "4-6 years" = 680,
+  "7-10 years" = 680,
+  "11-14 years" = 960,
+  "15-17 years" = 960,
+  "18-44 years" = 805,
+  "45-64 years" = 805,
+  "65-79 years" = 750
+)
+
+# add weight to the data 
+## Brings age, sex, BMI for the NOIND from table description_indiv_decode
+# --------------------------
+# Step 2: Merge weights and calculate individual thresholds
+# --------------------------
+conso_compo_alim_decode_nutrients_day_P <- conso_compo_alim_decode_nutrients_day %>%
+  mutate(
+    tage_PS = as.character(tage_PS),
+    sex_PS = as.character(sex_PS),
+    requirement_per_kg = case_when(
+      sex_PS == "Female" ~ x_Femme[tage_PS],
+      sex_PS == "Male" ~ x_Homme[tage_PS],
+      TRUE ~ NA_real_
+    ),
+    calcium_threshold_g = requirement_per_kg
+  ) %>%
+  na.omit()
+
+# --------------------------
+# Step 3: Collapse predicted intake from M0 to one row per person
+# --------------------------
+pred_df_M0_usual <- pred_df_all_M0 %>%
+  group_by(nutrient, NOIND, tage_PS, sex_PS) %>%
+  summarise(
+    observed_mean = mean(observed, na.rm = TRUE),
+    predicted = first(predicted),
+    .groups = "drop"
+  ) %>%
+  filter(nutrient == "Calcium") %>%
+  mutate(model = "M0")
+
+# --------------------------
+# Step 4: Collapse observed intake per person
+# --------------------------
+conso_compo_alim_decode_nutrients_day_PP <- conso_compo_alim_decode_nutrients_day_P %>%
+  group_by(NOIND, tage_PS, sex_PS) %>%
+  summarise(
+    calcium = mean(Calcium, na.rm = TRUE),
+    calcium_threshold_g = first(calcium_threshold_g),
+    .groups = "drop"
+  )
+
+# --------------------------
+# Step 5: Merge prediction + threshold and flag inadequacy
+# --------------------------
+calcium_status_M0 <- conso_compo_alim_decode_nutrients_day_PP %>%
+  left_join(pred_df_M0_usual %>% dplyr::select(NOIND, predicted), by = "NOIND") %>%
+  mutate(inadequate = predicted < calcium_threshold_g)
+
+# --------------------------
+# Step 6: Prepare plot data
+# --------------------------
+calcium_plot_data <- conso_compo_alim_decode_nutrients_day_PP %>%
+  dplyr::select(NOIND, calcium_threshold_g) %>%
+  left_join(
+    pred_df_M0_usual %>% dplyr::select(NOIND, predicted, observed_mean),
+    by = "NOIND"
+  ) %>%
+  mutate(
+    inadequate = predicted < calcium_threshold_g,
+    status = ifelse(inadequate, "Inadequate", "Adequate")
+  )
+
+# --------------------------
+# Step 7: Calculate overall prevalence
+# --------------------------
+inadequacy_rate <- mean(calcium_plot_data$inadequate, na.rm = TRUE) * 100
+
+# --------------------------
+# Step 8: Prepare data for density plot
+# --------------------------
+combined_df <- bind_rows(
+  pred_df_M0_usual %>%
+    filter(nutrient == "Calcium") %>%
+    dplyr::select(value = predicted) %>%
+    mutate(type = "predicted"),
+  conso_compo_alim_decode_nutrients_day_PP %>%
+    dplyr::select(value = calcium_threshold_g) %>%
+    mutate(type = "threshold")
+)
+
+# --------------------------
+# Step 9: Plot the density curves
+# --------------------------
+plot <- ggplot(combined_df, aes(x = value, fill = type)) +
+  geom_density(alpha = 0.4, adjust = 1.2) + 
+ # geom_vline(aes(xintercept = median(protein_plot_data$protein_threshold_g, na.rm = TRUE)), 
+          #   color = "blue", linetype = "dashed", linewidth = 1) +
+  scale_fill_manual(
+    values = c("predicted" = "#1b9e77", "threshold" = "#d95f02"),
+    labels = c("Predicted Intake", "Individual Threshold")
+  ) +
+  labs(
+    title = "Distribution of Usual Calcium Intake (Nested Model) vs. Requirement Thresholds",
+    x = "MG of Calcium (mg/day)",
+    y = "Density",
+    fill = ""
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  annotate("text", x = 300, y = 0.006,
+           label = paste0("Inadequacy: ", round(inadequacy_rate, 3), "%"))
+
+print(plot)
+## save the plot
+ggsave("calcium_inadequacy_M0.png", width = 12, height = 8, dpi = 300)
+
+
+
+```
+
+## Inadequacy prevelance box-plot for Calcium
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=4}
+model_list <- list(
+  M0 = calcium_status_M0,
+  M1 = calcium_status_M1,
+  M2 = calcium_status_M2,
+  M3 = calcium_status_M3,
+  M4 = calcium_status_M4
+)
+
+model_names <- c("Crossed Random Effect", "Random Effect", "Temporal Variational", "Traditional Regression", "Nested Random Effect")
+
+names(model_list) <- model_names
+
+prevalence_all_models <- purrr::imap_dfr(model_list, function(data, model_name) {
+  data %>%
+    group_by(tage_PS, sex_PS) %>%
+    summarise(prevalence = mean(inadequate, na.rm = TRUE) * 100, .groups = "drop") %>%
+    mutate(model = model_name)
+})
+
+
+prevalence_all_models$tage_PS <- factor(prevalence_all_models$tage_PS, levels = correct_order, ordered = TRUE)
+
+
+ggplot(prevalence_all_models, aes(x = tage_PS, y = prevalence, 
+                                  color = model, shape = sex_PS, group = interaction(sex_PS, model))) +
+  geom_point(size = 3) +
+  geom_line(linewidth = 1) +
+  scale_color_brewer(palette = "Set1") +  # Different color per model
+  scale_shape_manual(values = c("Male" = 8, "Female" = 17)) +  # * and triangle
+  labs(
+    title = "Prevalence of Inadequate Calcium Intake by Model, Sex, and Age",
+    x = "Age Group",
+    y = "Prevalence (%)",
+    color = "Model",
+    shape = "Sex"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5)
+  )
+
+
+## save the plot
+ggsave("calcium_inadequacy.png", width = 12, height = 8, dpi = 300)
+
+
+####
+prevalence_by_age_sex <- calcium_status_M4 %>%
+  group_by(tage_PS, sex_PS) %>%
+  summarise(prevalence = mean(inadequate, na.rm = TRUE) * 100, .groups = "drop")
+
+prevalence_by_age_sex$tage_PS <- factor(prevalence_by_age_sex$tage_PS, levels = correct_order, ordered = TRUE)
+
+# Plot prevalence with lines connecting points
+ggplot(prevalence_by_age_sex, aes(x = tage_PS, y = prevalence, group = sex_PS, color = sex_PS)) +
+  geom_point(size = 3, alpha = 0.9) +
+  geom_line(linewidth = 1.2) +  # straight lines between points
+  # Optional: smooth curve instead of line
+  # geom_smooth(se = FALSE, method = "loess", span = 1, linewidth = 1.2) +
+  scale_color_manual(values = c("Femme" = "red", "Homme" = "blue"), labels = c("Female", "Male")) +
+  labs(
+    title = "Sex-Specific Prevalence of Inadequate Intake",
+    x = "Age Group",
+    y = "Prevalence (%)",
+    color = "Sex"
+  ) +
+  theme_minimal() +
+  theme( 
+    legend.position = "top",
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, size = 14)
+  )
+
+
+
+
+
+```
+
+# Fibres
+## Prevalences of Inadequate Fibre Intakes
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=4}
+# Prevalences of Inadequate Protein Intakes
+library(ggplot2)
+library(dplyr)
+# Define the nutrient 
+nutrient <- "fibres"
+# define the threshold for inadequate intake across age and sex groups
+x_Femme <- c(
+  "0-11 months" = 5.8,
+  "1-3 years" = 10,
+  "4-6 years" = 14,
+  "7-10 years" = 16,
+  "11-14 years" = 19,
+  "15-17 years" = 21,
+  "18-44 years" = 30,
+  "45-64 years" = 30,
+  "65-79 years" = 30
+)
+x_Homme <- c(
+  "0-11 months" = 5.8,
+  "1-3 years" = 10,
+  "4-6 years" = 14,
+  "7-10 years" = 16,
+  "11-14 years" = 19,
+  "15-17 years" = 21,
+  "18-44 years" = 30,
+  "45-64 years" = 30,
+  "65-79 years" = 30
+)
+
+# add weight to the data 
+## Brings age, sex, BMI for the NOIND from table description_indiv_decode
+# --------------------------
+# Step 2: Merge weights and calculate individual thresholds
+# --------------------------
+conso_compo_alim_decode_nutrients_day_P <- conso_compo_alim_decode_nutrients_day %>%
+  mutate(
+    tage_PS = as.character(tage_PS),
+    sex_PS = as.character(sex_PS),
+    requirement_per_kg = case_when(
+      sex_PS == "Female" ~ x_Femme[tage_PS],
+      sex_PS == "Male" ~ x_Homme[tage_PS],
+      TRUE ~ NA_real_
+    ),
+    fibres_threshold_g = requirement_per_kg
+  ) %>%
+  na.omit()
+
+# --------------------------
+# Step 3: Collapse predicted intake from M4 to one row per person
+# --------------------------
+pred_df_M4_usual <- pred_df_all_M4 %>%
+  group_by(nutrient, NOIND, tage_PS, sex_PS) %>%
+  summarise(
+    observed_mean = mean(observed, na.rm = TRUE),
+    predicted = first(predicted),
+    .groups = "drop"
+  ) %>%
+  filter(nutrient == "Fibre") %>%
+  mutate(model = "M4")
+
+# --------------------------
+# Step 4: Collapse observed intake per person
+# --------------------------
+conso_compo_alim_decode_nutrients_day_PP <- conso_compo_alim_decode_nutrients_day_P %>%
+  group_by(NOIND, tage_PS, sex_PS) %>%
+  summarise(
+    fibres = mean(Fibre, na.rm = TRUE),
+    fibres_threshold_g = first(fibres_threshold_g),
+    .groups = "drop"
+  )
+
+# --------------------------
+# Step 5: Merge prediction + threshold and flag inadequacy
+# --------------------------
+fibres_status_M4 <- conso_compo_alim_decode_nutrients_day_PP %>%
+  left_join(pred_df_M4_usual %>% dplyr::select(NOIND, predicted), by = "NOIND") %>%
+  mutate(inadequate = predicted < fibres_threshold_g)
+
+# --------------------------
+# Step 6: Prepare plot data
+# --------------------------
+fibres_plot_data <- conso_compo_alim_decode_nutrients_day_PP %>%
+  dplyr::select(NOIND, fibres_threshold_g) %>%
+  left_join(
+    pred_df_M4_usual %>% dplyr::select(NOIND, predicted, observed_mean),
+    by = "NOIND"
+  ) %>%
+  mutate(
+    inadequate = predicted < fibres_threshold_g,
+    status = ifelse(inadequate, "Inadequate", "Adequate")
+  )
+
+# --------------------------
+# Step 7: Calculate overall prevalence
+# --------------------------
+inadequacy_rate <- mean(fibres_plot_data$inadequate, na.rm = TRUE) * 100
+
+# --------------------------
+# Step 8: Prepare data for density plot
+# --------------------------
+combined_df <- bind_rows(
+  pred_df_M4_usual %>%
+    filter(nutrient == "Fibre") %>%
+    dplyr::select(value = predicted) %>%
+    mutate(type = "predicted"),
+  conso_compo_alim_decode_nutrients_day_PP %>%
+    dplyr::select(value = fibres_threshold_g) %>%
+    mutate(type = "threshold")
+)
+
+# --------------------------
+# Step 9: Plot the density curves
+# --------------------------
+plot <- ggplot(combined_df, aes(x = value, fill = type)) +
+  geom_density(alpha = 0.4, adjust = 1.2) + 
+ # geom_vline(aes(xintercept = median(protein_plot_data$protein_threshold_g, na.rm = TRUE)), 
+          #   color = "blue", linetype = "dashed", linewidth = 1) +
+  scale_fill_manual(
+    values = c("predicted" = "#1b9e77", "threshold" = "#d95f02"),
+    labels = c("Predicted Intake", "Individual Threshold")
+  ) +
+  labs(
+    title = "Distribution of Usual Fibre Intake (Crossed Model) vs. Requirement Thresholds",
+    x = "G of Fibre (g/day)",
+    y = "Density",
+    fill = ""
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  annotate("text", x = 5, y = 0.06,
+           label = paste0("Inadequacy: ", round(inadequacy_rate, 3), "%"))
+
+print(plot)
+## save the plot
+ggsave("fibres_inadequacy_M4.png", width = 12, height = 8, dpi = 300)
+
+
+
+```
+
+## Inadequacy prevelance box-plot for Fibre
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=4}
+model_list <- list(
+  M0 = fibres_status_M0,
+  M1 = fibres_status_M1,
+  M2 = fibres_status_M2,
+  M3 = fibres_status_M3,
+  M4 = fibres_status_M4
+)
+
+model_names <- c("Crossed Random Effect", "Random Effect", "Temporal Variational", "Traditional Regression", "Nested Random Effect")
+
+names(model_list) <- model_names
+
+prevalence_all_models <- purrr::imap_dfr(model_list, function(data, model_name) {
+  data %>%
+    group_by(tage_PS, sex_PS) %>%
+    summarise(prevalence = mean(inadequate, na.rm = TRUE) * 100, .groups = "drop") %>%
+    mutate(model = model_name)
+})
+
+
+prevalence_all_models$tage_PS <- factor(prevalence_all_models$tage_PS, levels = correct_order, ordered = TRUE)
+
+
+ggplot(prevalence_all_models, aes(x = tage_PS, y = prevalence, 
+                                  color = model, shape = sex_PS, group = interaction(sex_PS, model))) +
+  geom_point(size = 3) +
+  geom_line(linewidth = 1) +
+  scale_color_brewer(palette = "Set1") +  # Different color per model
+  scale_shape_manual(values = c("Male" = 8, "Female" = 17)) +  # * and triangle
+  labs(
+    title = "Prevalence of Inadequate Fibre Intake by Model, Sex, and Age",
+    x = "Age Group",
+    y = "Prevalence (%)",
+    color = "Model",
+    shape = "Sex"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5)
+  )
+
+
+## save the plot
+ggsave("fibres_inadequacy.png", width = 12, height = 8, dpi = 300)
+
+
+####
+prevalence_by_age_sex <- fibres_status_M0 %>%
+  group_by(tage_PS, sex_PS) %>%
+  summarise(prevalence = mean(inadequate, na.rm = TRUE) * 100, .groups = "drop")
+
+prevalence_by_age_sex$tage_PS <- factor(prevalence_by_age_sex$tage_PS, levels = correct_order, ordered = TRUE)
+
+# Plot prevalence with lines connecting points
+ggplot(prevalence_by_age_sex, aes(x = tage_PS, y = prevalence, group = sex_PS, color = sex_PS)) +
+  geom_point(size = 3, alpha = 0.9) +
+  geom_line(linewidth = 1.2) +  # straight lines between points
+  # Optional: smooth curve instead of line
+  # geom_smooth(se = FALSE, method = "loess", span = 1, linewidth = 1.2) +
+  scale_color_manual(values = c("Femme" = "red", "Homme" = "blue"), labels = c("Female", "Male")) +
+  labs(
+    title = "Sex-Specific Prevalence of Inadequate Intake",
+    x = "Age Group",
+    y = "Prevalence (%)",
+    color = "Sex"
+  ) +
+  theme_minimal() +
+  theme( 
+    legend.position = "top",
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, size = 14)
+  )
+
+
+
+
+
+```
+
+
+
+
+# SFA
+## Prevalences of Inadequate SFA Intakes
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=4}
+# Prevalences of Inadequate Protein Intakes
+library(ggplot2)
+library(dplyr)
+# Define the nutrient 
+nutrient <- "ags"
+# define the threshold for inadequate intake across age and sex groups
+x_Femme <- c(
+  "0-11 months" = 0.12,
+  "1-3 years" = 0.12,
+  "4-6 years" = 0.12,
+  "7-10 years" = 0.12,
+  "11-14 years" = 0.12,
+  "15-17 years" = 0.12,
+  "18-44 years" = 0.12,
+  "45-64 years" = 0.12,
+  "65-79 years" = 0.12
+)
+x_Homme <- c(
+  "0-11 months" = 0.12,
+  "1-3 years" = 0.12,
+  "4-6 years" = 0.12,
+  "7-10 years" = 0.12,
+  "11-14 years" = 0.12,
+  "15-17 years" = 0.12,
+  "18-44 years" = 0.12,
+  "45-64 years" = 0.12,
+  "65-79 years" = 0.12
+)
+
+# add weight to the data 
+## Brings age, sex, BMI for the NOIND from table description_indiv_decode
+# --------------------------
+# Step 2: Merge weights and calculate individual thresholds
+# --------------------------
+conso_compo_alim_decode_nutrients_day_P <- conso_compo_alim_decode_nutrients_day %>%
+  mutate(
+    tage_PS = as.character(tage_PS),
+    sex_PS = as.character(sex_PS),
+    requirement_per_kg = case_when(
+      sex_PS == "Female" ~ x_Femme[tage_PS],
+      sex_PS == "Male" ~ x_Homme[tage_PS],
+      TRUE ~ NA_real_
+    ),
+    ags_threshold_g = requirement_per_kg * aet/9  ## 1 gram of fat = 9 kcal
+  ) %>%
+  na.omit()
+
+# --------------------------
+# Step 3: Collapse predicted intake from M0 to one row per person
+# --------------------------
+pred_df_M0_usual <- pred_df_all_M0 %>%
+  group_by(nutrient, NOIND, tage_PS, sex_PS) %>%
+  summarise(
+    observed_mean = mean(observed, na.rm = TRUE),
+    predicted = first(predicted),
+    .groups = "drop"
+  ) %>%
+  filter(nutrient == "SFA") %>%
+  mutate(model = "M0")
+
+# --------------------------
+# Step 4: Collapse observed intake per person
+# --------------------------
+conso_compo_alim_decode_nutrients_day_PP <- conso_compo_alim_decode_nutrients_day_P %>%
+  group_by(NOIND, tage_PS, sex_PS) %>%
+  summarise(
+    ags = mean(SFA, na.rm = TRUE),
+    ags_threshold_g = first(ags_threshold_g),
+    .groups = "drop"
+  )
+
+# --------------------------
+# Step 5: Merge prediction + threshold and flag inadequacy
+# --------------------------
+ags_status_M0 <- conso_compo_alim_decode_nutrients_day_PP %>%
+  left_join(pred_df_M0_usual %>% dplyr::select(NOIND, predicted), by = "NOIND") %>%
+  mutate(inadequate = predicted > ags_threshold_g)
+
+# --------------------------
+# Step 6: Prepare plot data
+# --------------------------
+ags_plot_data <- conso_compo_alim_decode_nutrients_day_PP %>%
+  dplyr::select(NOIND, ags_threshold_g) %>%
+  left_join(
+    pred_df_M0_usual %>% dplyr::select(NOIND, predicted, observed_mean),
+    by = "NOIND"
+  ) %>%
+  mutate(
+    inadequate = predicted > ags_threshold_g,
+    status = ifelse(inadequate, "Inadequate", "Adequate")
+  )
+
+# --------------------------
+# Step 7: Calculate overall prevalence
+# --------------------------
+inadequacy_rate <- mean(ags_plot_data$inadequate, na.rm = TRUE) * 100
+
+# --------------------------
+# Step 8: Prepare data for density plot
+# --------------------------
+combined_df <- bind_rows(
+  pred_df_M0_usual %>%
+    filter(nutrient == "SFA") %>%
+    dplyr::select(value = predicted) %>%
+    mutate(type = "predicted"),
+  conso_compo_alim_decode_nutrients_day_PP %>%
+    dplyr::select(value = ags_threshold_g) %>%
+    mutate(type = "threshold")
+)
+
+# --------------------------
+# Step 9: Plot the density curves
+# --------------------------
+plot <- ggplot(combined_df, aes(x = value, fill = type)) +
+  geom_density(alpha = 0.4, adjust = 1.2) + 
+ # geom_vline(aes(xintercept = median(protein_plot_data$protein_threshold_g, na.rm = TRUE)), 
+          #   color = "blue", linetype = "dashed", linewidth = 1) +
+  scale_fill_manual(
+    values = c("predicted" = "#1b9e77", "threshold" = "#d95f02"),
+    labels = c("Predicted Intake", "Individual Threshold")
+  ) +
+  labs(
+    title = "Distribution of Usual SFA Intake (Nested Model) vs. Requirement Thresholds",
+    x = "Gram of SFA (g/day)",
+    y = "Density",
+    fill = ""
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  annotate("text", x = 15, y = 0.05,
+           label = paste0("Excess: ", round(inadequacy_rate, 3), "%"))
+
+print(plot)
+## save the plot
+ggsave("ags_inadequacy_M0.png", width = 12, height = 8, dpi = 300)
+
+
+
+```
+## Inadequacy prevelance box-plot for ags
+
+```{r echo=FALSE, eval=TRUE, fig.align="center", fig.width=6, fig.height=4}
+model_list <- list(
+  M0 = ags_status_M0,
+  M1 = ags_status_M1,
+  M2 = ags_status_M2,
+  M3 = ags_status_M3,
+  M4 = ags_status_M4
+)
+
+model_names <- c("Crossed Random Effect", "Random Effect", "Temporal Variational", "Traditional Regression", "Nested Random Effect")
+
+names(model_list) <- model_names
+
+prevalence_all_models <- purrr::imap_dfr(model_list, function(data, model_name) {
+  data %>%
+    group_by(tage_PS, sex_PS) %>%
+    summarise(prevalence = mean(inadequate, na.rm = TRUE) * 100, .groups = "drop") %>%
+    mutate(model = model_name)
+})
+
+
+prevalence_all_models$tage_PS <- factor(prevalence_all_models$tage_PS, levels = correct_order, ordered = TRUE)
+
+
+ggplot(prevalence_all_models, aes(x = tage_PS, y = prevalence, 
+                                  color = model, shape = sex_PS, group = interaction(sex_PS, model))) +
+  geom_point(size = 3) +
+  geom_line(linewidth = 1) +
+  scale_color_brewer(palette = "Set1") +  # Different color per model
+  scale_shape_manual(values = c("Male" = 8, "Female" = 17)) +  # * and triangle
+  labs(
+    title = "Prevalence of Inadequate (Excess) SFA Intake by Model, Sex, and Age",
+    x = "Age Group",
+    y = "Prevalence (%)",
+    color = "Model",
+    shape = "Sex"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5)
+  )
+
+
+## save the plot
+ggsave("ags_inadequacy.png", width = 12, height = 8, dpi = 300)
+
+
+####
+prevalence_by_age_sex <- ags_status_M4 %>%
+  group_by(tage_PS, sex_PS) %>%
+  summarise(prevalence = mean(inadequate, na.rm = TRUE) * 100, .groups = "drop")
+
+prevalence_by_age_sex$tage_PS <- factor(prevalence_by_age_sex$tage_PS, levels = correct_order, ordered = TRUE)
+
+# Plot prevalence with lines connecting points
+ggplot(prevalence_by_age_sex, aes(x = tage_PS, y = prevalence, group = sex_PS, color = sex_PS)) +
+  geom_point(size = 3, alpha = 0.9) +
+  geom_line(linewidth = 1.2) +  # straight lines between points
+  # Optional: smooth curve instead of line
+  # geom_smooth(se = FALSE, method = "loess", span = 1, linewidth = 1.2) +
+  scale_color_manual(values = c("Femme" = "red", "Homme" = "blue"), labels = c("Female", "Male")) +
+  labs(
+    title = "Sex-Specific Prevalence of Inadequate Intake",
+    x = "Age Group",
+    y = "Prevalence (%)",
+    color = "Sex"
+  ) +
+  theme_minimal() +
+  theme( 
+    legend.position = "top",
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, size = 14)
+  )
+
+
+```
+### Usual intake density estimation by different models 
+
+
+
