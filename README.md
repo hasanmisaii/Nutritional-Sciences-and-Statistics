@@ -30,5 +30,5 @@ This repository includes subjects like:
    $$g(Y_{ij}) = \beta_0 + X_i^T B + \theta_i + t_{j(i)} + \epsilon_{ij} $$
   
 
-* Life expectancy modeling 
+
 
